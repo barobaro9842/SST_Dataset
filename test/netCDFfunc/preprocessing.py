@@ -54,7 +54,7 @@ def get_data_A(year, month, day, variable_name, is_mask=False) -> np.ndarray:
             mask[:,:720] = np.roll(mask[:,:720], -1, axis=0)
             
         elif variable_name == 'lon' :
-            # 2016년 이전 : 
+            # 2016년 이후 : 
             data = masked_array.data + 180
             mask = np.roll(masked_array.mask, 720)
         else :
@@ -66,3 +66,5 @@ def get_data_A(year, month, day, variable_name, is_mask=False) -> np.ndarray:
     
     if is_mask == False : return data
     else : return mask
+    
+
