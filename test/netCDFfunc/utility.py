@@ -1,6 +1,9 @@
 from .preprocessing import get_data_A
 from tqdm.notebook import tqdm
+
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+
 import cv2
 import numpy as np
 from netCDF4 import Dataset
@@ -37,12 +40,28 @@ def check_err_mask_A(variable_name) -> (int, list):
                 
     return cnt, err_date
                         
+
+
 def show_img(arr):
-    fig = plt.figure(figsize=(30,20))
-    plt.imshow(arr)
+    fig = plt.figure(figsize=(72,36))
+    np.place(arr, arr[:,:]==-999, np.nan)
+    cmap = cm.jet.copy()
+    cmap.set_bad(color='gray')
+    plt.imshow(arr, cmap=cmap)
+    plt.axis('off')
+    #plt.savefig('test.jpg', dpi=150, bbox_inches='tight')
     plt.show()
     
-    
+def save_img(arr, output_path):
+    fig = plt.figure(figsize=(72,36))
+    np.place(arr, arr[:,:]==-999, np.nan)
+    cmap = cm.jet.copy()
+    cmap.set_bad(color='gray')
+    plt.imshow(arr, cmap=cmap)
+    plt.axis('off')
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.show()
+
 def to_video(arr,frame,output_path):
     '''
     arr = [time, lat, lon]
@@ -146,13 +165,40 @@ def get_stat(input, type) -> dict:
                 max_arr = np.max(np.array(input[(month, day)]), axis=0)
                 np.place(max_arr, max_arr[:,:] == -999, np.nan)
                 result_dic[(month, day)] = (max_arr * 0.9).tolist()
-                max_arr.fillna(-999)
+                np.place(max_arr, max_arr[:,:] == np.nan, -999)
                 
     
     return result_dic
 
 
-def create_new_variable(dsin, dsout, new_varable_name, dtype, dimension, fill_value, values, attributes):
+def copy_existing_variable(dsin, dsout, default_fill_value):
+    
+    for attr in dsin.ncattrs() :
+        
+        if attr == 'anom' : continue
+        elif attr == 'err' : new_attr = 'analysis_error'
+        elif attr == 'ice' : new_attr = 'sea_ice_fraction'
+        elif attr == 'sst' : new_attr = 'analysed_sst'
+        else : new_attr = attr
+        
+        dsout.setncattr(new_attr, dsin.getncattr(attr))
+
+    for k, v in dsin.dimensions.items():
+        dsout.createDimension(k, v.size)
+    
+    for name, variable in dsin.variables.items():
+    
+        existing_variable = dsout.createVariable(name, variable.datatype, variable.dimensions, fill_value=default_fill_value) # name, datatype, dimension
+        dsout[name][:] = dsin[name][:] # values
+
+        for attr in variable.ncattrs():
+            if attr == '_FillValue': continue
+            existing_variable.setncattr(attr, variable.getncattr(attr)) # variable attr
+                
+    return dsout
+
+
+def create_new_variable(dsout, new_variable_name, dtype, dimension, fill_value, values, attributes):
     '''
     ex)
     variable_name = 'mean_sst'
@@ -167,91 +213,151 @@ def create_new_variable(dsin, dsout, new_varable_name, dtype, dimension, fill_va
                 'valid_max' : 1200,
                 'units' : 'celcius'}
     '''
-    
-    
-    for attr in dsin.ncattrs() :
-        dsout.setncattr(attr, dsin.getncattr(attr))
-
-    for k, v in dsin.dimensions.items():
-        dsout.createDimension(k, v.size)
-    
-    for name, variable in dsin.variables.items():
-    
-        existing_variable = dsout.createVariable(name, variable.datatype, variable.dimensions, fill_value=fill_value) # name, datatype, dimension
-        dsout[name][:] = dsin[name][:] # values
-
-        for attr in variable.ncattrs():
-            if attr == '_FillValue': continue
-            existing_variable.setncattr(attr, variable.getncattr(attr)) # variable attr
             
-    new_variable = dsout.createVariable(new_varable_name, dtype, dimension, fill_value=fill_value)
-    dsout[new_varable_name][:] = values
+    new_variable = dsout.createVariable(new_variable_name, dtype, dimension, fill_value=fill_value)
+    dsout[new_variable_name][:] = values
     
     for k,v in attributes.items():
-        if attr == '_FillValue': continue
+        if k == '_FillValue': continue
         new_variable.setncattr(k, v) # variable attr
     
     return dsout
 
 
-def transfer_data(year, month, day, variable_type, variable_value): 
-    '''
-    variable_type = 'mean' or 'perc' or 'cnt'
-    '''
+
+def test_data_preprocessing(ds_new, title, comment, grid_size,
+                            core_variable_name, core_variable_standard_name, core_variable_unit, core_variable_dtype, core_variable_values):
     
-    date = dt.date(year,month,day).strftime('%Y%m%d')
+    # set attribute
+    now = dt.datetime.now()
+    attr_dict = {'title' : title,
+                 'grid' : f'{grid_size}',
+                 'institution' : 'NIA',
+                 'name_creator' : 'BNT',
+                 'date_creation' : now.strftime('%Y-%m-%d %H:%M:%S'),
+                 'comment' : comment}
+
+    for k, v in attr_dict.items():
+        ds_new.setncattr(k,v)
+
+    # set dimension
+    dim_dict = {'ntime' : 1,
+                'nlat' : 180 // grid_size,
+                'nlon' : 360 // grid_size}
+
+    for k, v in dim_dict.items():
+        ds_new.createDimension(k,v)
+
+    # set variables
+    lat_grid = np.arange(-90 + (grid_size/2), 90 + (grid_size/2), grid_size)
+    lon_grid = np.arange(0 + (grid_size/2), 360 + (grid_size/2), grid_size)
+
+    for variable_name in ['time', 'lat', 'lon', core_variable_name]:
+
+        if variable_name == 'time' :
+            variable_attribute = {'standard_name' : 'time',
+                                  'format' : 'Mdd',
+                                  'axis' : 'T'}
+            dtype = np.int16
+            dimensions = ('ntime',)
+            variable_values = 101
+
+        if variable_name == 'lat' :
+            variable_attribute = {'standard_name' : 'latitude',
+                                  'units' : 'degrees',
+                                  'axis' : 'Y'}
+            dtype = np.float32
+            dimensions = ('nlat',)
+            variable_values = lat_grid
+
+        if variable_name == 'lon' :
+            variable_attribute = {'standard_name' : 'longitude',
+                                  'units' : 'degrees',
+                                  'axis' : 'X'}
+            dtype = np.float32
+            dimensions = ('nlon',)
+            variable_values = lon_grid
+            
+        if variable_name == core_variable_name :
+            variable_attribute  = {'standard_name' : core_variable_standard_name,
+                                   'units' : core_variable_unit}
+            dtype = core_variable_dtype
+            dimensions = ('ntime', 'nlat', 'nlon',)
+            variable_values = core_variable_values
+
+
+        fill_value = -999
+
+        ds_new = create_new_variable(ds_new,
+                                     new_varable_name=variable_name,  
+                                     dtype=dtype,
+                                     dimension=dimensions,
+                                     fill_value=fill_value,
+                                     values=variable_values,
+                                     attributes=variable_attribute)
+
+    return ds_new
+
+# def transfer_data(year, month, day, variable_types, variable_values): 
+#     '''
+#     variable_type = 'mean' or 'perc' or 'cnt'
+#     '''
     
-    if year < 2016 : 
-        dsin = Dataset(f'/Volumes/T7/AVHRR_OI_SST/v2.1/{year}/oisst-avhrr-v02r01.{date}.nc', 'r', format='NETCDF4')
-    else :
-        if os.path.exists(f'/Volumes/T7/AVHRR_OI_SST/v2.1/{year}/{date}120000-NCEI-L4_GHRSST-SSTblend-AVHRR_OI-GLOB-v02.0-fv02.1.nc'):
-            dsin = Dataset(f'/Volumes/T7/AVHRR_OI_SST/v2.1/{year}/{date}120000-NCEI-L4_GHRSST-SSTblend-AVHRR_OI-GLOB-v02.0-fv02.1.nc', 'r', format='NETCDF4')
-        else :
-            dsin = Dataset(f'/Volumes/T7/AVHRR_OI_SST/v2.1/{year}/{date}120000-NCEI-L4_GHRSST-SSTblend-AVHRR_OI-GLOB-v02.1-fv02.1.nc', 'r', format='NETCDF4')
+#     date = dt.date(year,month,day).strftime('%Y%m%d')
     
-    if not os.path.exists(f'/Volumes/T7/new_data/AVHRR_OI_SST/{year}'):
-        os.makedirs((f'/Volumes/T7/new_data/AVHRR_OI_SST/{year}'))
+#     if year < 2016 : 
+#         dsin = Dataset(f'/Volumes/T7/AVHRR_OI_SST/v2.1/{year}/oisst-avhrr-v02r01.{date}.nc', 'r', format='NETCDF4')
+#     else :
+#         if os.path.exists(f'/Volumes/T7/AVHRR_OI_SST/v2.1/{year}/{date}120000-NCEI-L4_GHRSST-SSTblend-AVHRR_OI-GLOB-v02.0-fv02.1.nc'):
+#             dsin = Dataset(f'/Volumes/T7/AVHRR_OI_SST/v2.1/{year}/{date}120000-NCEI-L4_GHRSST-SSTblend-AVHRR_OI-GLOB-v02.0-fv02.1.nc', 'r', format='NETCDF4')
+#         else :
+#             dsin = Dataset(f'/Volumes/T7/AVHRR_OI_SST/v2.1/{year}/{date}120000-NCEI-L4_GHRSST-SSTblend-AVHRR_OI-GLOB-v02.1-fv02.1.nc', 'r', format='NETCDF4')
+    
+#     if not os.path.exists(f'/Volumes/T7/new_data/AVHRR_OI_SST/{year}'):
+#         os.makedirs((f'/Volumes/T7/new_data/AVHRR_OI_SST/{year}'))
                            
-    dsout = Dataset(f'/Volumes/T7/new_data/AVHRR_OI_SST/{year}/{date}120000-NCEI-L4_GHRSST-SSTblend-AVHRR_OI-GLOB-v02.1-fv02.1.nc', 'w', format='NETCDF4')
-
-    if variable_type == 'mean' :
-        variable_name = 'mean_sst'
-        dtype = np.float32
-        attribute = {'long_name' : 'mean sst for 30 years (1981/9/1~2011/8/31)',
-                     'add_offset' : 0.0,
-                     'scale_factor' : 0.01,
-                     'valid_min' : -1200,
-                     'valid_max' : 1200,
-                     'units' : 'celcius'}
-        
-    if variable_type == 'perc' :
-        variable_name = '90-percentile_sst'
-        dtype = np.float32
-        attribute = {'long_name' : '90-percentile of sst for 30years (1981/9/1~2011/8/31)',
-                     'add_offset' : 0.0,
-                     'scale_factor' : 0.01,
-                     'valid_min' : -1200,
-                     'valid_max' : 1200,
-                     'units' : 'celcius'}
+#     dsout = Dataset(f'/Volumes/T7/new_data/AVHRR_OI_SST/{year}/{date}120000-NCEI-L4_GHRSST-SSTblend-AVHRR_OI-GLOB-v02.1-fv02.1.nc', 'w', format='NETCDF4')
     
-    if variable_type == 'cnt' :
-        variable_name = 'cnt_of_value'
-        dtype = np.int16
-        attribute = {'long_name' : 'based values counted by pixel (30,0 = normal, other = anormal)',
-                     'add_offset' : 0,
-                     'scale_factor' : 1,
-                     'valid_min' : 0,
-                     'valid_max' : 30,
-                     'units' : '-'}
-        
-              
+#     dsout = copy_existing_variable(dsin, dsout, default_fill_value=-999)
     
-    # common attribute
-    dimensions = ('time', 'zlev', 'lat', 'lon')
-    fill_value = -999
-    values = variable_value[(month,date)]
+#     for variable_type, variable_value in zip(variable_types, variable_values):
 
-    create_new_variable(dsin, dsout, variable_name, dtype, dimensions, fill_value, values, attribute)
+#         if variable_type == 'mean' :
+#             variable_name = 'mean_sst'
+#             dtype = np.float32
+#             attribute = {'long_name' : 'mean sst for 30 years (1981/9/1~2011/8/31)',
+#                          'add_offset' : 0.0,
+#                          'scale_factor' : 0.01,
+#                          'valid_min' : -1200,
+#                          'valid_max' : 1200,
+#                          'units' : 'celcius'}
 
-    dsout.close()
-    dsin.close()
+#         if variable_type == 'perc' :
+#             variable_name = '90-percentile_sst'
+#             dtype = np.float32
+#             attribute = {'long_name' : '90-percentile of sst for 30years (1981/9/1~2011/8/31)',
+#                          'add_offset' : 0.0,
+#                          'scale_factor' : 0.01,
+#                          'valid_min' : -1200,
+#                          'valid_max' : 1200,
+#                          'units' : 'celcius'}
+
+#         if variable_type == 'cnt' :
+#             variable_name = 'cnt_of_value'
+#             dtype = np.int16
+#             attribute = {'long_name' : 'based values counted by pixel (30,0 = normal, other = anormal)',
+#                          'add_offset' : 0,
+#                          'scale_factor' : 1,
+#                          'valid_min' : 0,
+#                          'valid_max' : 30,
+#                          'units' : '-'}
+
+#         # common attribute
+#         dimensions = ('time', 'zlev', 'lat', 'lon')
+#         fill_value = -999
+#         values = variable_value[(month,date)]
+
+#         dsout = create_new_variable(dsout, variable_name, dtype, dimensions, fill_value, values, attribute)
+
+#     dsout.close()
+#     dsin.close()
