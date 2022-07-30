@@ -53,6 +53,9 @@ def get_data_A(year, month, day, variable_name, is_mask=False) -> np.ndarray:
             data[:,:720] = np.roll(data[:,:720], -1, axis=0)
             mask[:,:720] = np.roll(mask[:,:720], -1, axis=0)
             
+            data = data - 273.15 #kelvin to celcius
+            np.place(data, data[:,:]== -33041.15, -999)
+            
         elif variable_name == 'lon' :
             # 2016년 이후 : 
             data = masked_array.data + 180
