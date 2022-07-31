@@ -4,7 +4,7 @@ import datetime as dt
 import os
 from tqdm.notebook import tqdm
 
-def get_data_A(year, month, day, variable_name, is_mask=False) -> np.ndarray:
+def get_data_A(base_dir, year, month, day, variable_name, is_mask=False) -> np.ndarray:
 
     '''
     varialbes = ['err', 'ice', 'lat', 'lon', 'sst', 'anom']
@@ -17,18 +17,20 @@ def get_data_A(year, month, day, variable_name, is_mask=False) -> np.ndarray:
     if variable_name in ['anom', 'err', 'ice', 'sst'] :
         is_value = True
     
-    if year < 2016 : 
-        D = Dataset(f'/Volumes/T7/AVHRR_OI_SST/v2.1/{year}/oisst-avhrr-v02r01.{date}.nc', 'r', format='NETCDF4')
+    
+    if year < 2016 :
+        directory = os.path.join(base_dir, f'{year}/oisst-avhrr-v02r01.{date}.nc') 
 
     else :
-        if os.path.exists(f'/Volumes/T7/AVHRR_OI_SST/v2.1/{year}/{date}120000-NCEI-L4_GHRSST-SSTblend-AVHRR_OI-GLOB-v02.0-fv02.1.nc'):
-            D = Dataset(f'/Volumes/T7/AVHRR_OI_SST/v2.1/{year}/{date}120000-NCEI-L4_GHRSST-SSTblend-AVHRR_OI-GLOB-v02.0-fv02.1.nc', 'r', format='NETCDF4')
-        else :
-            D = Dataset(f'/Volumes/T7/AVHRR_OI_SST/v2.1/{year}/{date}120000-NCEI-L4_GHRSST-SSTblend-AVHRR_OI-GLOB-v02.1-fv02.1.nc', 'r', format='NETCDF4')
-        
+        directory = os.path.join(base_dir, f'{year}/{date}120000-NCEI-L4_GHRSST-SSTblend-AVHRR_OI-GLOB-v02.0-fv02.1.nc')
+        if not os.path.exists(directory):
+            directory = os.path.join(base_dir, f'{year}/{date}120000-NCEI-L4_GHRSST-SSTblend-AVHRR_OI-GLOB-v02.1-fv02.1.nc')
+
         if variable_name == 'err' : variable_name = 'analysis_error'
         elif variable_name == 'sst' : variable_name = 'analysed_sst'
         elif variable_name == 'ice' : variable_name = 'sea_ice_fraction'
+    
+    D = Dataset(directory, 'r', format='NETCDF4')
     
     var = D[variable_name]
     masked_array = var[:]

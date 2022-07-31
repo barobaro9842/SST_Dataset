@@ -12,7 +12,7 @@ import datetime as dt
 import os
 
 
-def check_err_mask_A(variable_name) -> (int, list):
+def check_err_mask_A(variable_name):
     months = range(1,13)
     days = [31,28,31,30,31,30,31,31,30,31,30,31]
     
@@ -52,8 +52,16 @@ def show_img(arr):
     #plt.savefig('test.jpg', dpi=150, bbox_inches='tight')
     plt.show()
     
-def save_img(arr, output_path):
-    fig = plt.figure(figsize=(72,36))
+def save_img(arr, output_path, figsize=()):
+    if figsize == ():
+        x, y = arr.shape
+    else :
+        x,y = figsize
+        
+    x = x/20
+    y = y/20
+    
+    fig = plt.figure(figsize=(y, x))
     np.place(arr, arr[:,:]==-999, np.nan)
     cmap = cm.jet.copy()
     cmap.set_bad(color='gray')
@@ -75,12 +83,12 @@ def to_video(arr,frame,output_path):
         
     out.release()
     
-def get_data_sequence(get_data_func, var_name ,start_date : tuple, end_date : tuple, is_mask=False) -> list:
+def get_data_sequence(base_dir, get_data_func, var_name ,start_date : tuple, end_date : tuple, is_mask=False) -> list:
     
     s_year, s_month, s_day = start_date
     e_year, e_month, e_day = end_date
     
-    
+
     result = []
     
     days = [31,28,31,30,31,30,31,31,30,31,30,31]
@@ -101,17 +109,18 @@ def get_data_sequence(get_data_func, var_name ,start_date : tuple, end_date : tu
                 if get_data_func.__name__ == 'get_data_A':
                     if year == 2021 and month == 1 and day == 16 : continue
 
-                result.append(get_data_func(year,month,day, var_name, is_mask=is_mask))
+                result.append(get_data_func(base_dir, year,month,day, var_name, is_mask=is_mask))
         
     return result
     
     
-def get_data_by_date(get_data_func, var_name ,start_date : tuple, end_date : tuple, is_mask=False) -> list:
+def get_data_by_date(base_dir, get_data_func, var_name ,start_date : tuple, end_date : tuple, specific_date=(), is_mask=False) -> list:
     s_year, s_month, s_day = start_date
     e_year, e_month, e_day = end_date
     
     result_dic = dict()
-    result = []
+    if specific_date != ():
+        specific_month, specific_day = specific_date
     
     days = [31,28,31,30,31,30,31,31,30,31,30,31]
     
@@ -123,19 +132,23 @@ def get_data_by_date(get_data_func, var_name ,start_date : tuple, end_date : tup
         
         for month, day_len in zip(months, days[months[0]-1:]):
             
+            if month != specific_month : continue
+            
             if year == s_year and month == s_month : day_range = range(s_day, day_len+1)
             elif year == e_year and month == e_month : day_range = range(1, e_day+1)
             else : day_range = range(1, day_len+1)
             
             for day in day_range :
+                
+                if day != specific_day : continue
+                
                 if get_data_func.__name__ == 'get_data_A':
                     if year == 2021 and month == 1 and day == 16 : continue
             
-                data = get_data_func(year,month,day, var_name, is_mask=is_mask)
+                data = get_data_func(base_dir, year,month,day, var_name, is_mask=is_mask)
                 if result_dic.get((month, day)) : result_dic[(month, day)].append(data)
                 else : result_dic[(month, day)] = [data]
-                
-        
+    
     return result_dic
 
 def get_stat(input, type) -> dict:
@@ -225,8 +238,9 @@ def create_new_variable(dsout, new_variable_name, dtype, dimension, fill_value, 
 
 
 
-def test_data_preprocessing(ds_new, title, comment, grid_size,
-                            core_variable_name, core_variable_standard_name, core_variable_unit, core_variable_dtype, core_variable_values):
+def test_data_write(ds_new, title, comment, grid_size, 
+                    core_variable_name, core_variable_standard_name, core_variable_unit, core_variable_dtype, core_variable_values,
+                    lat_range=(0,None), lon_range=(0,None)):
     
     # set attribute
     now = dt.datetime.now()
@@ -240,18 +254,21 @@ def test_data_preprocessing(ds_new, title, comment, grid_size,
     for k, v in attr_dict.items():
         ds_new.setncattr(k,v)
 
+    lat_s, lat_e = lat_range
+    lon_s, lon_e = lon_range
+    
+    lat_grid = np.arange(-90 + (grid_size/2), 90 + (grid_size/2), grid_size)[lat_s:lat_e]
+    lon_grid = np.arange(0 + (grid_size/2), 360 + (grid_size/2), grid_size)[lon_s:lon_e]
+    
     # set dimension
     dim_dict = {'ntime' : 1,
-                'nlat' : 180 // grid_size,
-                'nlon' : 360 // grid_size}
+                'nlat' : len(lat_grid),
+                'nlon' : len(lon_grid)}
 
     for k, v in dim_dict.items():
         ds_new.createDimension(k,v)
 
     # set variables
-    lat_grid = np.arange(-90 + (grid_size/2), 90 + (grid_size/2), grid_size)
-    lon_grid = np.arange(0 + (grid_size/2), 360 + (grid_size/2), grid_size)
-
     for variable_name in ['time', 'lat', 'lon', core_variable_name]:
 
         if variable_name == 'time' :
@@ -283,13 +300,13 @@ def test_data_preprocessing(ds_new, title, comment, grid_size,
                                    'units' : core_variable_unit}
             dtype = core_variable_dtype
             dimensions = ('ntime', 'nlat', 'nlon',)
-            variable_values = core_variable_values
+            variable_values = core_variable_values[lat_s:lat_e, lon_s:lon_e]
 
 
         fill_value = -999
 
         ds_new = create_new_variable(ds_new,
-                                     new_varable_name=variable_name,  
+                                     new_variable_name=variable_name,  
                                      dtype=dtype,
                                      dimension=dimensions,
                                      fill_value=fill_value,
@@ -297,67 +314,3 @@ def test_data_preprocessing(ds_new, title, comment, grid_size,
                                      attributes=variable_attribute)
 
     return ds_new
-
-# def transfer_data(year, month, day, variable_types, variable_values): 
-#     '''
-#     variable_type = 'mean' or 'perc' or 'cnt'
-#     '''
-    
-#     date = dt.date(year,month,day).strftime('%Y%m%d')
-    
-#     if year < 2016 : 
-#         dsin = Dataset(f'/Volumes/T7/AVHRR_OI_SST/v2.1/{year}/oisst-avhrr-v02r01.{date}.nc', 'r', format='NETCDF4')
-#     else :
-#         if os.path.exists(f'/Volumes/T7/AVHRR_OI_SST/v2.1/{year}/{date}120000-NCEI-L4_GHRSST-SSTblend-AVHRR_OI-GLOB-v02.0-fv02.1.nc'):
-#             dsin = Dataset(f'/Volumes/T7/AVHRR_OI_SST/v2.1/{year}/{date}120000-NCEI-L4_GHRSST-SSTblend-AVHRR_OI-GLOB-v02.0-fv02.1.nc', 'r', format='NETCDF4')
-#         else :
-#             dsin = Dataset(f'/Volumes/T7/AVHRR_OI_SST/v2.1/{year}/{date}120000-NCEI-L4_GHRSST-SSTblend-AVHRR_OI-GLOB-v02.1-fv02.1.nc', 'r', format='NETCDF4')
-    
-#     if not os.path.exists(f'/Volumes/T7/new_data/AVHRR_OI_SST/{year}'):
-#         os.makedirs((f'/Volumes/T7/new_data/AVHRR_OI_SST/{year}'))
-                           
-#     dsout = Dataset(f'/Volumes/T7/new_data/AVHRR_OI_SST/{year}/{date}120000-NCEI-L4_GHRSST-SSTblend-AVHRR_OI-GLOB-v02.1-fv02.1.nc', 'w', format='NETCDF4')
-    
-#     dsout = copy_existing_variable(dsin, dsout, default_fill_value=-999)
-    
-#     for variable_type, variable_value in zip(variable_types, variable_values):
-
-#         if variable_type == 'mean' :
-#             variable_name = 'mean_sst'
-#             dtype = np.float32
-#             attribute = {'long_name' : 'mean sst for 30 years (1981/9/1~2011/8/31)',
-#                          'add_offset' : 0.0,
-#                          'scale_factor' : 0.01,
-#                          'valid_min' : -1200,
-#                          'valid_max' : 1200,
-#                          'units' : 'celcius'}
-
-#         if variable_type == 'perc' :
-#             variable_name = '90-percentile_sst'
-#             dtype = np.float32
-#             attribute = {'long_name' : '90-percentile of sst for 30years (1981/9/1~2011/8/31)',
-#                          'add_offset' : 0.0,
-#                          'scale_factor' : 0.01,
-#                          'valid_min' : -1200,
-#                          'valid_max' : 1200,
-#                          'units' : 'celcius'}
-
-#         if variable_type == 'cnt' :
-#             variable_name = 'cnt_of_value'
-#             dtype = np.int16
-#             attribute = {'long_name' : 'based values counted by pixel (30,0 = normal, other = anormal)',
-#                          'add_offset' : 0,
-#                          'scale_factor' : 1,
-#                          'valid_min' : 0,
-#                          'valid_max' : 30,
-#                          'units' : '-'}
-
-#         # common attribute
-#         dimensions = ('time', 'zlev', 'lat', 'lon')
-#         fill_value = -999
-#         values = variable_value[(month,date)]
-
-#         dsout = create_new_variable(dsout, variable_name, dtype, dimensions, fill_value, values, attribute)
-
-#     dsout.close()
-#     dsin.close()
