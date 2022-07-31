@@ -114,7 +114,7 @@ def get_data_sequence(base_dir, get_data_func, var_name ,start_date : tuple, end
     return result
     
     
-def get_data_by_date(base_dir, get_data_func, var_name ,start_date : tuple, end_date : tuple, specific_date=(), is_mask=False) -> list:
+def get_data_by_date(base_dir, get_data_func, var_name ,start_date : tuple, end_date : tuple, specific_year=None, specific_date=(), is_mask=False) -> list:
     s_year, s_month, s_day = start_date
     e_year, e_month, e_day = end_date
     
@@ -125,6 +125,8 @@ def get_data_by_date(base_dir, get_data_func, var_name ,start_date : tuple, end_
     days = [31,28,31,30,31,30,31,31,30,31,30,31]
     
     for year in tqdm(range(s_year, e_year+1)) :
+        
+        if specific_year != None and year != specific_year : continue
         
         if year == s_year : months = range(s_month, 13)
         elif year == e_year : months = range(1, e_month+1)
@@ -257,12 +259,18 @@ def test_data_write(ds_new, title, comment, grid_size,
     lat_s, lat_e = lat_range
     lon_s, lon_e = lon_range
     
-    force_cut = None
-    if grid_size == 0.081 or grid_size == 0.054 : 
-        force_cut = -1
+    lat_force_cut = None
+    lon_force_cut = None
+    
+    if grid_size == 0.081 : 
+        lat_force_cut = -1
+        lon_force_cut = -1
+    if grid_size == 0.054 :
+        lat_force_cut = -1
         
-    lat_grid = np.arange(-90 + (grid_size/2), 90 + (grid_size/2), grid_size)[:force_cut][lat_s:lat_e]
-    lon_grid = np.arange(0 + (grid_size/2), 360 + (grid_size/2), grid_size)[:force_cut][lon_s:lon_e]
+        
+    lat_grid = np.arange(-90 + (grid_size/2), 90 + (grid_size/2), grid_size)[:lat_force_cut][lat_s:lat_e]
+    lon_grid = np.arange(0 + (grid_size/2), 360 + (grid_size/2), grid_size)[:lon_force_cut][lon_s:lon_e]
     
     # set dimension
     dim_dict = {'ntime' : 1,
