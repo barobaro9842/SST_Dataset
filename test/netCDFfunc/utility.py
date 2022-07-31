@@ -257,8 +257,12 @@ def test_data_write(ds_new, title, comment, grid_size,
     lat_s, lat_e = lat_range
     lon_s, lon_e = lon_range
     
-    lat_grid = np.arange(-90 + (grid_size/2), 90 + (grid_size/2), grid_size)[lat_s:lat_e]
-    lon_grid = np.arange(0 + (grid_size/2), 360 + (grid_size/2), grid_size)[lon_s:lon_e]
+    force_cut = None
+    if grid_size == 0.081 or grid_size == 0.054 : 
+        force_cut = -1
+        
+    lat_grid = np.arange(-90 + (grid_size/2), 90 + (grid_size/2), grid_size)[:force_cut][lat_s:lat_e]
+    lon_grid = np.arange(0 + (grid_size/2), 360 + (grid_size/2), grid_size)[:force_cut][lon_s:lon_e]
     
     # set dimension
     dim_dict = {'ntime' : 1,
