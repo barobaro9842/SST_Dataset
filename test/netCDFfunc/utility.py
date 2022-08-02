@@ -3,6 +3,7 @@ from tqdm.notebook import tqdm
 
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 import cv2
 import numpy as np
@@ -42,33 +43,71 @@ def check_err_mask_A(variable_name):
                         
 
 
-def show_img(arr):
-    fig = plt.figure(figsize=(72,36))
-    np.place(arr, arr[:,:]==-999, np.nan)
+def show_img(arr, lat, lon):
+    fig, ax = plt.subplots(figsize=(24,12))
+    gca_ax = plt.gca()
+    
+    if arr.dtype == np.float32:
+        np.place(arr, arr[:,:]==-999, np.nan)
+    
     cmap = cm.jet.copy()
     cmap.set_bad(color='gray')
-    plt.imshow(arr, cmap=cmap)
-    plt.axis('off')
-    #plt.savefig('test.jpg', dpi=150, bbox_inches='tight')
-    plt.show()
+    im = plt.imshow(arr, cmap=cmap, origin='lower', extent=[lon.min(), lon.max(), lat.min(), lat.max()])
     
-def save_img(arr, output_path, figsize=()):
+    plt.xticks(range(0,361, 20))
+    plt.yticks(range(-80,81,20))
+    plt.grid(True, linestyle='--', color='black')
+    
+    x_labels = ['20°E','40°E','60°E','80°E','100°E','120°E','140°E','160°E','180°','160°W','140°W','120°W','100°W','80°W','60°W','40°W','20°W','0','20°E']
+    y_labels = ['80°S','60°S','40°S','20°S','0°','20°N','40°N','60°N','80°N']
+    ax.set_xticklabels(x_labels)
+    ax.set_yticklabels(y_labels)
+    
+    
+    divider = make_axes_locatable(gca_ax)
+    cax = divider.append_axes("right", size="3%", pad=0.1)
+    plt.colorbar(im, cax=cax)
+    
+    plt.show()
+    plt.close()
+    
+def save_img(arr, output_path, lon=None, lat=None, figsize=()):
     if figsize == ():
         x, y = arr.shape
     else :
         x,y = figsize
         
-    x = x/20
-    y = y/20
+    x = x/60
+    y = y/60
     
-    fig = plt.figure(figsize=(y, x))
-    np.place(arr, arr[:,:]==-999, np.nan)
+    fig, ax = plt.subplots(figsize=(24,12))
+    gca_ax = plt.gca()
+    
+    if arr.dtype == np.float32:
+        np.place(arr, arr[:,:]==-999, np.nan)
+    
     cmap = cm.jet.copy()
     cmap.set_bad(color='gray')
-    plt.imshow(arr, cmap=cmap)
-    plt.axis('off')
+    
+
+    im = plt.imshow(arr, cmap=cmap, origin='lower', extent=[lon.min(), lon.max(), lat.min(), lat.max()])
+    
+    plt.xticks(range(0,361, 20))
+    plt.yticks(range(-80,81,20))
+    plt.grid(True, linestyle='--', color='black')
+    
+    x_labels = ['20°E','40°E','60°E','80°E','100°E','120°E','140°E','160°E','180°','160°W','140°W','120°W','100°W','80°W','60°W','40°W','20°W','0','20°E']
+    y_labels = ['80°S','60°S','40°S','20°S','0°','20°N','40°N','60°N','80°N']
+    ax.set_xticklabels(x_labels)
+    ax.set_yticklabels(y_labels)
+    
+    divider = make_axes_locatable(gca_ax)
+    cax = divider.append_axes("right", size="3%", pad=0.1)
+    plt.colorbar(im, cax=cax)
     plt.savefig(output_path, dpi=150, bbox_inches='tight')
+
     plt.show()
+    plt.close()
 
 def to_video(arr,frame,output_path):
     '''
@@ -337,8 +376,10 @@ def test_data_write(ds_new, title, comment, grid_size,
 
     return ds_new
 
-def masking(input_arr, mask_list):
-    for mask in mask_list :
-        input_arr = np.ma.array(input_arr, mask = np.invert(mask))
-        input_arr = input_arr.filled(fill_value = np.nan)
-    return input_arr
+def masking(input_list, mask, fill_value):
+    result = []
+    for arr in input_list :
+        arr = np.ma.array(arr, mask = mask)
+        arr = arr.filled(fill_value = fill_value)
+        result.append(arr)
+    return np.array(result)
