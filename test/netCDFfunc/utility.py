@@ -85,11 +85,14 @@ def to_video(arr,frame,output_path):
     
 def get_data_sequence(base_dir, get_data_func, var_name ,start_date : tuple, end_date : tuple, is_mask=False) -> list:
     
-    s_year, s_month, s_day = start_date
-    e_year, e_month, e_day = end_date
+
     
 
+    first_check = True
     result = []
+    
+    s_year, s_month, s_day = start_date
+    e_year, e_month, e_day = end_date
     
     days = [31,28,31,30,31,30,31,31,30,31,30,31]
     
@@ -109,18 +112,25 @@ def get_data_sequence(base_dir, get_data_func, var_name ,start_date : tuple, end
                 if get_data_func.__name__ == 'get_data_A':
                     if year == 2021 and month == 1 and day == 16 : continue
 
+                # if first_check == True :
+                #     result = get_data_func(base_dir, year,month,day, var_name, is_mask=is_mask)
+                #     first_check = False
+                # else : result = np.append(result, get_data_func(base_dir, year,month,day, var_name, is_mask=is_mask), axis=0)
+                
                 result.append(get_data_func(base_dir, year,month,day, var_name, is_mask=is_mask))
         
-    return result
+    return np.array(result)
     
     
 def get_data_by_date(base_dir, get_data_func, var_name ,start_date : tuple, end_date : tuple, specific_year=None, specific_date=(), is_mask=False) -> list:
+    
+    result_dic = dict()
+    
     s_year, s_month, s_day = start_date
     e_year, e_month, e_day = end_date
     
-    result_dic = dict()
-    if specific_date != ():
-        specific_month, specific_day = specific_date
+    if specific_date != (): specific_month, specific_day = specific_date
+    else : specific_month, specific_day = None, None
     
     days = [31,28,31,30,31,30,31,31,30,31,30,31]
     
@@ -134,7 +144,7 @@ def get_data_by_date(base_dir, get_data_func, var_name ,start_date : tuple, end_
         
         for month, day_len in zip(months, days[months[0]-1:]):
             
-            if month != specific_month : continue
+            if specific_month != None and month != specific_month : continue
             
             if year == s_year and month == s_month : day_range = range(s_day, day_len+1)
             elif year == e_year and month == e_month : day_range = range(1, e_day+1)
@@ -142,7 +152,7 @@ def get_data_by_date(base_dir, get_data_func, var_name ,start_date : tuple, end_
             
             for day in day_range :
                 
-                if day != specific_day : continue
+                if specific_day != None and day != specific_day : continue
                 
                 if get_data_func.__name__ == 'get_data_A':
                     if year == 2021 and month == 1 and day == 16 : continue
@@ -326,3 +336,9 @@ def test_data_write(ds_new, title, comment, grid_size,
                                      attributes=variable_attribute)
 
     return ds_new
+
+def masking(input_arr, mask_list):
+    for mask in mask_list :
+        input_arr = np.ma.array(input_arr, mask = np.invert(mask))
+        input_arr = input_arr.filled(fill_value = np.nan)
+    return input_arr
