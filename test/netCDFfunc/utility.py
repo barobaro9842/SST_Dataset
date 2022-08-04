@@ -3,6 +3,7 @@ from tqdm.notebook import tqdm
 
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+from matplotlib.colors import ListedColormap
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 import cv2
@@ -43,25 +44,57 @@ def check_err_mask_A(variable_name):
                         
 
 
-def show_img(arr, lat, lon):
+def show_img(arr, lat=None, lon=None, grade=False):
+#    x, y = arr.shape[1] / 30, arr.shape[0] / 30
     fig, ax = plt.subplots(figsize=(24,12))
     gca_ax = plt.gca()
     
     if arr.dtype == np.float32:
         np.place(arr, arr[:,:]==-999, np.nan)
     
-    cmap = cm.jet.copy()
+    if grade == False :
+        cmap = cm.jet.copy()
+        
+    elif grade == True :
+        if -1 not in arr :
+            cmap = cm.get_cmap('jet', 6)
+            new_cmap = cmap(np.linspace(0,1,6))
+            #new_cmap[0] = np.array([240/256, 240/256, 240/256, 1])
+            new_cmap[0] = np.array([179/256, 241/256, 255/256, 1])
+            new_cmap[1] = np.array([255/256, 255/256, 128/256, 1])
+            new_cmap[2] = np.array([255/256, 179/256, 53/256, 1])
+            new_cmap[3] = np.array([255/256, 129/256, 0/256, 1])
+            new_cmap[4] = np.array([203/256, 76/256, 1/256, 1])
+            new_cmap[5] = np.array([153/256, 26/256, 0/256, 1])
+            
+        elif -1 in arr :
+            cmap = cm.get_cmap('jet', 7)
+            new_cmap = cmap(np.linspace(0,1,7))
+            new_cmap[0] = np.array([240/256, 240/256, 240/256, 1])
+            new_cmap[1] = np.array([179/256, 241/256, 255/256, 1])
+            new_cmap[2] = np.array([255/256, 255/256, 128/256, 1])
+            new_cmap[3] = np.array([255/256, 179/256, 53/256, 1])
+            new_cmap[4] = np.array([255/256, 129/256, 0/256, 1])
+            new_cmap[5] = np.array([203/256, 76/256, 1/256, 1])
+            new_cmap[6] = np.array([153/256, 26/256, 0/256, 1])
+            
+        cmap = ListedColormap(new_cmap)
+        
     cmap.set_bad(color='gray')
-    im = plt.imshow(arr, cmap=cmap, origin='lower', extent=[lon.min(), lon.max(), lat.min(), lat.max()])
+        
+    if type(lat) != np.ndarray or type(lon) != np.ndarray :
+        im = plt.imshow(arr, cmap=cmap, origin='lower')
+    else :
+        im = plt.imshow(arr, cmap=cmap, origin='lower', extent=[lon.min(), lon.max(), lat.min(), lat.max()])
     
-    plt.xticks(range(0,361, 20))
-    plt.yticks(range(-80,81,20))
-    plt.grid(True, linestyle='--', color='black')
-    
-    x_labels = ['20°E','40°E','60°E','80°E','100°E','120°E','140°E','160°E','180°','160°W','140°W','120°W','100°W','80°W','60°W','40°W','20°W','0','20°E']
-    y_labels = ['80°S','60°S','40°S','20°S','0°','20°N','40°N','60°N','80°N']
-    ax.set_xticklabels(x_labels)
-    ax.set_yticklabels(y_labels)
+        plt.xticks(range(0,361, 20))
+        plt.yticks(range(-80,81,20))
+        plt.grid(True, linestyle='--', color='black')
+        
+        x_labels = ['20°E','40°E','60°E','80°E','100°E','120°E','140°E','160°E','180°','160°W','140°W','120°W','100°W','80°W','60°W','40°W','20°W','0','20°E']
+        y_labels = ['80°S','60°S','40°S','20°S','0°','20°N','40°N','60°N','80°N']
+        ax.set_xticklabels(x_labels)
+        ax.set_yticklabels(y_labels)
     
     
     divider = make_axes_locatable(gca_ax)
@@ -71,7 +104,7 @@ def show_img(arr, lat, lon):
     plt.show()
     plt.close()
     
-def save_img(arr, output_path, lon=None, lat=None, figsize=()):
+def save_img(arr, output_path, lon=None, lat=None, figsize=(), show_img=False, grade=False):
     if figsize == ():
         x, y = arr.shape
     else :
@@ -85,28 +118,97 @@ def save_img(arr, output_path, lon=None, lat=None, figsize=()):
     
     if arr.dtype == np.float32:
         np.place(arr, arr[:,:]==-999, np.nan)
-    
-    cmap = cm.jet.copy()
+        
+    if grade == False :
+        cmap = cm.jet.copy()
+        
+    elif grade == True :
+        if -1 not in arr :
+            cmap = cm.get_cmap('jet', 6)
+            new_cmap = cmap(np.linspace(0,1,6))
+            #new_cmap[0] = np.array([240/256, 240/256, 240/256, 1])
+            new_cmap[0] = np.array([179/256, 241/256, 255/256, 1])
+            new_cmap[1] = np.array([255/256, 255/256, 128/256, 1])
+            new_cmap[2] = np.array([255/256, 179/256, 53/256, 1])
+            new_cmap[3] = np.array([255/256, 129/256, 0/256, 1])
+            new_cmap[4] = np.array([203/256, 76/256, 1/256, 1])
+            new_cmap[5] = np.array([153/256, 26/256, 0/256, 1])
+            
+        elif -1 in arr :
+            cmap = cm.get_cmap('jet', 7)
+            new_cmap = cmap(np.linspace(0,1,7))
+            new_cmap[0] = np.array([240/256, 240/256, 240/256, 1])
+            new_cmap[1] = np.array([179/256, 241/256, 255/256, 1])
+            new_cmap[2] = np.array([255/256, 255/256, 128/256, 1])
+            new_cmap[3] = np.array([255/256, 179/256, 53/256, 1])
+            new_cmap[4] = np.array([255/256, 129/256, 0/256, 1])
+            new_cmap[5] = np.array([203/256, 76/256, 1/256, 1])
+            new_cmap[6] = np.array([153/256, 26/256, 0/256, 1])
+            
+        if 5 not in arr :
+            cmap = cm.get_cmap('jet', 6)
+            new_cmap = cmap(np.linspace(0,1,6))
+            new_cmap[0] = np.array([240/256, 240/256, 240/256, 1])
+            new_cmap[1] = np.array([179/256, 241/256, 255/256, 1])
+            new_cmap[2] = np.array([255/256, 255/256, 128/256, 1])
+            new_cmap[3] = np.array([255/256, 179/256, 53/256, 1])
+            new_cmap[4] = np.array([255/256, 129/256, 0/256, 1])
+            new_cmap[5] = np.array([203/256, 76/256, 1/256, 1])
+            if 4 not in arr :
+                cmap = cm.get_cmap('jet', 5)
+                new_cmap = cmap(np.linspace(0,1,5))
+                new_cmap[0] = np.array([240/256, 240/256, 240/256, 1])
+                new_cmap[1] = np.array([179/256, 241/256, 255/256, 1])
+                new_cmap[2] = np.array([255/256, 255/256, 128/256, 1])
+                new_cmap[3] = np.array([255/256, 179/256, 53/256, 1])
+                new_cmap[4] = np.array([255/256, 129/256, 0/256, 1])
+                if 3 not in arr :
+                    cmap = cm.get_cmap('jet', 4)
+                    new_cmap = cmap(np.linspace(0,1,4))
+                    new_cmap[0] = np.array([240/256, 240/256, 240/256, 1])
+                    new_cmap[1] = np.array([179/256, 241/256, 255/256, 1])
+                    new_cmap[2] = np.array([255/256, 255/256, 128/256, 1])
+                    new_cmap[3] = np.array([255/256, 179/256, 53/256, 1])
+                    if 2 not in arr :
+                        cmap = cm.get_cmap('jet', 3)
+                        new_cmap = cmap(np.linspace(0,1,3))
+                        new_cmap[0] = np.array([240/256, 240/256, 240/256, 1])
+                        new_cmap[1] = np.array([179/256, 241/256, 255/256, 1])
+                        new_cmap[2] = np.array([255/256, 255/256, 128/256, 1])
+                        if 1 not in arr :
+                            cmap = cm.get_cmap('jet', 2)
+                            new_cmap = cmap(np.linspace(0,1,2))
+                            new_cmap[0] = np.array([240/256, 240/256, 240/256, 1])
+                            new_cmap[1] = np.array([179/256, 241/256, 255/256, 1])
+                            new_cmap[2] = np.array([255/256, 255/256, 128/256, 1])
+                        
+            
+        cmap = ListedColormap(new_cmap)
+        
     cmap.set_bad(color='gray')
     
 
-    im = plt.imshow(arr, cmap=cmap, origin='lower', extent=[lon.min(), lon.max(), lat.min(), lat.max()])
+    if lat == None or lon == None :
+        im = plt.imshow(arr, cmap=cmap, origin='lower')
+    else :
+        im = plt.imshow(arr, cmap=cmap, origin='lower', extent=[lon.min(), lon.max(), lat.min(), lat.max()])
     
-    plt.xticks(range(0,361, 20))
-    plt.yticks(range(-80,81,20))
-    plt.grid(True, linestyle='--', color='black')
-    
-    x_labels = ['20°E','40°E','60°E','80°E','100°E','120°E','140°E','160°E','180°','160°W','140°W','120°W','100°W','80°W','60°W','40°W','20°W','0','20°E']
-    y_labels = ['80°S','60°S','40°S','20°S','0°','20°N','40°N','60°N','80°N']
-    ax.set_xticklabels(x_labels)
-    ax.set_yticklabels(y_labels)
+        plt.xticks(range(0,361, 20))
+        plt.yticks(range(-80,81,20))
+        plt.grid(True, linestyle='--', color='black')
+        
+        x_labels = ['20°E','40°E','60°E','80°E','100°E','120°E','140°E','160°E','180°','160°W','140°W','120°W','100°W','80°W','60°W','40°W','20°W','0','20°E']
+        y_labels = ['80°S','60°S','40°S','20°S','0°','20°N','40°N','60°N','80°N']
+        ax.set_xticklabels(x_labels)
+        ax.set_yticklabels(y_labels)
     
     divider = make_axes_locatable(gca_ax)
     cax = divider.append_axes("right", size="3%", pad=0.1)
     plt.colorbar(im, cax=cax)
     plt.savefig(output_path, dpi=150, bbox_inches='tight')
 
-    plt.show()
+    if show_img == True :
+        plt.show()
     plt.close()
 
 def to_video(arr,frame,output_path):
@@ -123,9 +225,6 @@ def to_video(arr,frame,output_path):
     out.release()
     
 def get_data_sequence(base_dir, get_data_func, var_name ,start_date : tuple, end_date : tuple, is_mask=False) -> list:
-    
-
-    
 
     first_check = True
     result = []
@@ -224,12 +323,12 @@ def get_stat(input, type) -> dict:
                 
     
     if type == 'perc' :
+        
         for month, day_len in tqdm(zip(range(1,13), days)):
             for day in range(1,day_len+1):
-                max_arr = np.max(np.array(input[(month, day)]), axis=0)
-                np.place(max_arr, max_arr[:,:] == -999, np.nan)
-                result_dic[(month, day)] = (max_arr * 0.9).tolist()
-                np.place(max_arr, max_arr[:,:] == np.nan, -999)
+                arr = np.array(input[(month, day)])
+                pctl_arr = np.percentile(arr, 90 ,axis=0)
+                result_dic[(month, day)] = pctl_arr.tolist()
                 
     
     return result_dic
@@ -376,10 +475,27 @@ def test_data_write(ds_new, title, comment, grid_size,
 
     return ds_new
 
-def masking(input_list, mask, fill_value):
+def masking(input, mask, fill_value):
     result = []
-    for arr in input_list :
+    if len(input.shape) == 3 and len(input.shape) == 3 :
+        for arr, m in zip(input, mask):
+            arr = np.ma.array(arr, mask = m)
+            arr = arr.filled(fill_value = fill_value)
+            result.append(arr)
+        return np.array(result)
+    
+    elif len(input.shape) == 3 and len(input.shape) == 2 :
+        for arr in input :
+            arr = np.ma.array(arr, mask = mask)
+            arr = arr.filled(fill_value = fill_value)
+            result.append(arr)
+        return np.array(result)
+    
+    elif len(input.shape) == 2 :
+        arr = input
         arr = np.ma.array(arr, mask = mask)
         arr = arr.filled(fill_value = fill_value)
-        result.append(arr)
-    return np.array(result)
+        
+        return np.array(arr)
+        
+    
