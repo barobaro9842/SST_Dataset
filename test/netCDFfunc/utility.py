@@ -56,27 +56,34 @@ def show_img(arr, lat=None, lon=None, grade=False):
         cmap = cm.jet.copy()
         
     elif grade == True :
+        ice = np.array([240/256, 240/256, 240/256, 1])
+        grade_0 = np.array([179/256, 241/256, 255/256, 1])
+        grade_1 = np.array([255/256, 255/256, 128/256, 1])
+        grade_2 = np.array([255/256, 179/256, 53/256, 1])
+        grade_3 = np.array([255/256, 129/256, 0/256, 1])
+        grade_4 = np.array([203/256, 76/256, 1/256, 1])
+        grade_5 = np.array([153/256, 26/256, 0/256, 1])
+        grades = np.array([ice, grade_0, grade_1, grade_2, grade_3, grade_4, grade_5])
         if -1 not in arr :
             cmap = cm.get_cmap('jet', 6)
             new_cmap = cmap(np.linspace(0,1,6))
-            #new_cmap[0] = np.array([240/256, 240/256, 240/256, 1])
-            new_cmap[0] = np.array([179/256, 241/256, 255/256, 1])
-            new_cmap[1] = np.array([255/256, 255/256, 128/256, 1])
-            new_cmap[2] = np.array([255/256, 179/256, 53/256, 1])
-            new_cmap[3] = np.array([255/256, 129/256, 0/256, 1])
-            new_cmap[4] = np.array([203/256, 76/256, 1/256, 1])
-            new_cmap[5] = np.array([153/256, 26/256, 0/256, 1])
+            new_cmap = grades[1:]
             
         elif -1 in arr :
             cmap = cm.get_cmap('jet', 7)
             new_cmap = cmap(np.linspace(0,1,7))
-            new_cmap[0] = np.array([240/256, 240/256, 240/256, 1])
-            new_cmap[1] = np.array([179/256, 241/256, 255/256, 1])
-            new_cmap[2] = np.array([255/256, 255/256, 128/256, 1])
-            new_cmap[3] = np.array([255/256, 179/256, 53/256, 1])
-            new_cmap[4] = np.array([255/256, 129/256, 0/256, 1])
-            new_cmap[5] = np.array([203/256, 76/256, 1/256, 1])
-            new_cmap[6] = np.array([153/256, 26/256, 0/256, 1])
+            new_cmap = grades
+            
+        if 5 not in arr :
+            new_cmap = new_cmap[:-1]
+            if 4 not in arr :
+                new_cmap = new_cmap[:-1]
+                if 3 not in arr :
+                    new_cmap = new_cmap[:-1]
+                    if 2 not in arr :
+                        new_cmap = new_cmap[:-1]
+                        if 1 not in arr :
+                            new_cmap = new_cmap[:-1]
             
         cmap = ListedColormap(new_cmap)
         
@@ -123,65 +130,34 @@ def save_img(arr, output_path, lon=None, lat=None, figsize=(), show_img=False, g
         cmap = cm.jet.copy()
         
     elif grade == True :
+        ice = np.array([240/256, 240/256, 240/256, 1])
+        grade_0 = np.array([179/256, 241/256, 255/256, 1])
+        grade_1 = np.array([255/256, 255/256, 128/256, 1])
+        grade_2 = np.array([255/256, 179/256, 53/256, 1])
+        grade_3 = np.array([255/256, 129/256, 0/256, 1])
+        grade_4 = np.array([203/256, 76/256, 1/256, 1])
+        grade_5 = np.array([153/256, 26/256, 0/256, 1])
+        grades = np.array([ice, grade_0, grade_1, grade_2, grade_3, grade_4, grade_5])
         if -1 not in arr :
             cmap = cm.get_cmap('jet', 6)
             new_cmap = cmap(np.linspace(0,1,6))
-            #new_cmap[0] = np.array([240/256, 240/256, 240/256, 1])
-            new_cmap[0] = np.array([179/256, 241/256, 255/256, 1])
-            new_cmap[1] = np.array([255/256, 255/256, 128/256, 1])
-            new_cmap[2] = np.array([255/256, 179/256, 53/256, 1])
-            new_cmap[3] = np.array([255/256, 129/256, 0/256, 1])
-            new_cmap[4] = np.array([203/256, 76/256, 1/256, 1])
-            new_cmap[5] = np.array([153/256, 26/256, 0/256, 1])
+            new_cmap = grades[1:]
             
         elif -1 in arr :
             cmap = cm.get_cmap('jet', 7)
             new_cmap = cmap(np.linspace(0,1,7))
-            new_cmap[0] = np.array([240/256, 240/256, 240/256, 1])
-            new_cmap[1] = np.array([179/256, 241/256, 255/256, 1])
-            new_cmap[2] = np.array([255/256, 255/256, 128/256, 1])
-            new_cmap[3] = np.array([255/256, 179/256, 53/256, 1])
-            new_cmap[4] = np.array([255/256, 129/256, 0/256, 1])
-            new_cmap[5] = np.array([203/256, 76/256, 1/256, 1])
-            new_cmap[6] = np.array([153/256, 26/256, 0/256, 1])
+            new_cmap = grades
             
         if 5 not in arr :
-            cmap = cm.get_cmap('jet', 6)
-            new_cmap = cmap(np.linspace(0,1,6))
-            new_cmap[0] = np.array([240/256, 240/256, 240/256, 1])
-            new_cmap[1] = np.array([179/256, 241/256, 255/256, 1])
-            new_cmap[2] = np.array([255/256, 255/256, 128/256, 1])
-            new_cmap[3] = np.array([255/256, 179/256, 53/256, 1])
-            new_cmap[4] = np.array([255/256, 129/256, 0/256, 1])
-            new_cmap[5] = np.array([203/256, 76/256, 1/256, 1])
+            new_cmap = new_cmap[:-1]
             if 4 not in arr :
-                cmap = cm.get_cmap('jet', 5)
-                new_cmap = cmap(np.linspace(0,1,5))
-                new_cmap[0] = np.array([240/256, 240/256, 240/256, 1])
-                new_cmap[1] = np.array([179/256, 241/256, 255/256, 1])
-                new_cmap[2] = np.array([255/256, 255/256, 128/256, 1])
-                new_cmap[3] = np.array([255/256, 179/256, 53/256, 1])
-                new_cmap[4] = np.array([255/256, 129/256, 0/256, 1])
+                new_cmap = new_cmap[:-1]
                 if 3 not in arr :
-                    cmap = cm.get_cmap('jet', 4)
-                    new_cmap = cmap(np.linspace(0,1,4))
-                    new_cmap[0] = np.array([240/256, 240/256, 240/256, 1])
-                    new_cmap[1] = np.array([179/256, 241/256, 255/256, 1])
-                    new_cmap[2] = np.array([255/256, 255/256, 128/256, 1])
-                    new_cmap[3] = np.array([255/256, 179/256, 53/256, 1])
+                    new_cmap = new_cmap[:-1]
                     if 2 not in arr :
-                        cmap = cm.get_cmap('jet', 3)
-                        new_cmap = cmap(np.linspace(0,1,3))
-                        new_cmap[0] = np.array([240/256, 240/256, 240/256, 1])
-                        new_cmap[1] = np.array([179/256, 241/256, 255/256, 1])
-                        new_cmap[2] = np.array([255/256, 255/256, 128/256, 1])
+                        new_cmap = new_cmap[:-1]
                         if 1 not in arr :
-                            cmap = cm.get_cmap('jet', 2)
-                            new_cmap = cmap(np.linspace(0,1,2))
-                            new_cmap[0] = np.array([240/256, 240/256, 240/256, 1])
-                            new_cmap[1] = np.array([179/256, 241/256, 255/256, 1])
-                            new_cmap[2] = np.array([255/256, 255/256, 128/256, 1])
-                        
+                            new_cmap = new_cmap[:-1]
             
         cmap = ListedColormap(new_cmap)
         
