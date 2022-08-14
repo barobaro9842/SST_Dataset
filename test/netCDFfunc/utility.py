@@ -7,6 +7,10 @@ import matplotlib.cm as cm
 from matplotlib.colors import ListedColormap
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
+import shutil
+import requests
+import datetime
+
 import cv2
 import numpy as np
 from netCDF4 import Dataset
@@ -46,10 +50,15 @@ def check_err_mask_A(variable_name):
     return cnt, err_date
                         
 
-
-def to_img(arr, output_path, time, lon=None, lat=None, figsize=(), save_img=False, show_img=False, is_anomaly = False, is_grade=False):
+def to_img(arr, output_path='', date=(), lon=None, lat=None, figsize=(), save_img=False, show_img=False, is_anomaly = False, is_grade=False):
     
     plt.style.use('default')
+    
+    if date != () : 
+        month, day = date   
+        date = dt.date(-1,month,day).strftime('%m%d')
+    else :
+        date = ''
     
     if figsize == ():
         x, y = arr.shape
@@ -64,11 +73,13 @@ def to_img(arr, output_path, time, lon=None, lat=None, figsize=(), save_img=Fals
     
     if arr.dtype == np.float32:
         np.place(arr, arr[:,:]==-999, np.nan)
-        
+    
+    cmap = cm.jet.copy()
+
     if is_anomaly == True :
-        cmap = cm.jet.copy()
-        vmax = 10.2
-        vmin = 0
+        cmap = cm.RdBu_r.copy()
+        # vmax = 10.2
+        # vmin = -8
         
     elif is_grade == True :
         vmax = 5
@@ -99,8 +110,9 @@ def to_img(arr, output_path, time, lon=None, lat=None, figsize=(), save_img=Fals
     cmap.set_under(color=np.array([250/256, 250/256, 250/256, 1]))
     
     if type(lat) != np.ndarray or type(lon) != np.ndarray :
-        if is_anomaly == True : im = plt.imshow(arr, cmap=cmap, origin='lower', vmin=vmin, vmax=vmax)
-        elif is_grade == True : im = plt.imshow(arr, cmap=cmap, origin='lower', vmin=vmin)#, vmax=vmax)
+        if is_anomaly == True : im = plt.imshow(arr, cmap=cmap, origin='lower',)# vmin=vmin, vmax=vmax)
+        elif is_grade == True : im = plt.imshow(arr, cmap=cmap, origin='lower', vmin=vmin)
+        else : im = plt.imshow(arr, cmap=cmap, origin='lower')
     else :
         im = plt.imshow(arr, cmap=cmap, origin='lower', extent=[lon.min(), lon.max(), lat.min(), lat.max()], vmin=vmin, vmax=vmax) 
     
@@ -115,10 +127,10 @@ def to_img(arr, output_path, time, lon=None, lat=None, figsize=(), save_img=Fals
     
     divider = make_axes_locatable(gca_ax)
     cax = divider.append_axes("right", size="3%", pad=0.1)
-    if is_anomaly == True : 
+    if is_grade != True : 
         plt.colorbar(im, cax=cax)
     
-    plt.text(-30,0.9,f'{time}',{'fontsize':30}, transform=plt.gca().transAxes, va='top', ha='left')
+    plt.text(-30,0.9,f'{date}',{'fontsize':30}, transform=plt.gca().transAxes, va='top', ha='left')
     
     if save_img == True :
         plt.savefig(output_path, dpi=150, bbox_inches='tight')
@@ -171,7 +183,7 @@ def get_data_sequence(base_dir, get_data_func, var_name ,start_date : tuple, end
     return np.array(result)
     
     
-def get_data_by_date(base_dir, get_data_func, var_name ,start_date : tuple, end_date : tuple, specific_year=None, specific_date=(), is_mask=False) -> list:
+def get_data_by_date(base_dir, get_data_func, var_name ,start_date : tuple, end_date : tuple, specific_year=None, specific_date=(), is_mask=False):
     
     result_dic = dict()
     
@@ -440,9 +452,11 @@ def get_anomaly_heatlevel(ds_in, ds_sst, ds_ice, is_heat_level=False) :
             sst = ds_sst[(month, day)][0]
             sst = cropping(sst, 'rok')
             
+            num_year = np.array(ds_ice[(month, day)]).shape[0]
+            
             ice_accum = np.sum(ds_ice[(month, day)], axis=0)
-            np.place(ice_accum, ice_accum[:,:] <= 30 * 0.15, False)
-            np.place(ice_accum, ice_accum[:,:] > 30 * 0.15, True)
+            np.place(ice_accum, ice_accum[:,:] <= num_year * 0.15, False)
+            np.place(ice_accum, ice_accum[:,:] > num_year * 0.15, True)
             ice_accum = ice_accum.astype(bool)
             ice_accum = cropping(ice_accum, 'rok')
             
@@ -462,6 +476,91 @@ def get_anomaly_heatlevel(ds_in, ds_sst, ds_ice, is_heat_level=False) :
                 np.place(heat_level, heat_level[:,:]>5, 5)
             
                 yield (month,day), heat_level
+
+
+def download_data(output_path, start_date=None, end_date=None, dataset_names=None):
+    ''' 
+    start_date and end_date = Tuple (Year, Month, Day)
+    
+     1) start_date and end_date == None : most_recent
+     2) start_date != None and end_date == None : start_date ~ most_recent
+     3) start_date != None and end_date != None : start_date ~ end_date
+
+    dataset_names = list of (AVHRR, CMC, DMI, GAMSSA, MUR25, MUR0.01, MWIR, MW, NAVO, OSPON, OSPO, OSTIA)
+    '''
+    most_recent = datetime.datetime.now()-datetime.timedelta(days=4)
+
+    if start_date == None and end_date == None :    
+        year = most_recent.strftime('%Y')
+        date = most_recent.strftime('%Y%m%d')
+        
+        j_day = most_recent.strftime('%j')
+        j_day = int(j_day)
+        
+    
+    if dataset_names == None :
+        dataset_names = ['AVHRR', 'CMC', 'DMI', 'GAMSSA', 'MUR25', 'MUR', 'MWIR', 'MW', 'NAVO', 'OSPON', 'OSPO', 'OSTIA']
+    
+    
+    common_url = 'https://podaac-opendap.jpl.nasa.gov/opendap/hyrax/allData/ghrsst/data'
+
+    for dataset_name in dataset_names :
+        
+        if dataset_name == 'AVHRR':
+            file_name = f'{date}120000-NCEI-L4_GHRSST-SSTblend-AVHRR_OI-GLOB-v02.0-fv02.1.nc'
+            url = f'{common_url}/GDS2/L4/GLOB/NCEI/AVHRR_OI/v2.1/{year}/{j_day}/{file_name}'
+        
+        elif dataset_name == 'CMC' :
+            file_name = f'{date}120000-CMC-L4_GHRSST-SSTfnd-CMC0.1deg-GLOB-v02.0-fv03.0.nc'
+            url = f'{common_url}/GDS2/L4/GLOB/CMC/CMC0.1deg/v3/{year}/{j_day}/{file_name}'
             
-            # save_img(anomaly, f'/Volumes/T7/intermediate_output/rok_anomaly_heatlevel_criteria_change_2/anomaly_{date}', date)
-            # save_img(heat_level, f'/Volumes/T7/intermediate_output/rok_anomaly_heatlevel_criteria_change_2/heat_level_{date}', date, is_grade=True)
+        elif dataset_name == 'DMI' :
+            file_name = f'{date}000000-DMI-L4_GHRSST-SSTfnd-DMI_OI-GLOB-v02.0-fv01.0.nc'
+            url = f'{common_url}/GDS2/L4/GLOB/DMI/DMI_OI/v1/{year}/{j_day}/{file_name}'
+            
+        elif dataset_name == 'GAMSSA' :
+            file_name = f'{date}120000-ABOM-L4_GHRSST-SSTfnd-GAMSSA_28km-GLOB-v02.0-fv01.0.nc'
+            url = f'{common_url}/GDS2/L4/GLOB/ABOM/GAMSSA/v1.0/{year}/{j_day}/{file_name}'
+            
+        elif dataset_name == 'MUR25' :
+            file_name = f'{date}090000-JPL-L4_GHRSST-SSTfnd-MUR25-GLOB-v02.0-fv04.2.nc'
+            url = f'{common_url}/GDS2/L4/GLOB/JPL/MUR25/v4.2/{year}/{j_day}/{file_name}'
+            
+        elif dataset_name == 'MUR' :
+            file_name = f'{date}090000-JPL-L4_GHRSST-SSTfnd-MUR-GLOB-v02.0-fv04.1.nc'
+            url = f'{common_url}/GDS2/L4/GLOB/JPL/MUR/v4.1/{year}/{j_day}/{file_name}'
+            
+        elif dataset_name == 'MWIR' :
+            file_name = f'{date}120000-REMSS-L4_GHRSST-SSTfnd-MW_IR_OI-GLOB-v02.0-fv05.0.nc'
+            url = f'{common_url}/GDS2/L4/GLOB/REMSS/mw_ir_OI/v5.0/{year}/{j_day}/{file_name}'
+            
+        elif dataset_name == 'MW' :
+            file_name = f'{date}120000-REMSS-L4_GHRSST-SSTfnd-MW_OI-GLOB-v02.0-fv05.0.nc'
+            url = f'{common_url}/GDS2/L4/GLOB/REMSS/mw_OI/v5.0/{year}/{j_day}/{file_name}'
+            
+        elif dataset_name == 'NAVO' :
+            file_name = f'{date}000000-NAVO-L4_GHRSST-SST1m-K10_SST-GLOB-v02.0-fv01.0.nc'
+            url = f'{common_url}/GDS2/L4/GLOB/NAVO/K10_SST/v1/{year}/{j_day}/{file_name}'
+            
+        elif dataset_name == 'OSPON' :
+            file_name = f'{date}000000-OSPO-L4_GHRSST-SSTfnd-Geo_Polar_Blended_Night-GLOB-v02.0-fv01.0.nc'
+            url = f'{common_url}/GDS2/L4/GLOB/OSPO/Geo_Polar_Blended_Night/v1/{year}/{j_day}/{file_name}'
+            
+        elif dataset_name == 'OSPO' :
+            file_name = f'{date}000000-OSPO-L4_GHRSST-SSTfnd-Geo_Polar_Blended-GLOB-v02.0-fv01.0.nc'
+            url = f'{common_url}/GDS2/L4/GLOB/OSPO/Geo_Polar_Blended/v1/{year}/{j_day}/{file_name}'
+            
+        elif dataset_name == 'OSTIA' :
+            file_name = f'{date}-UKMO-L4HRfnd-GLOB-v01-fv02-OSTIA.nc.bz2'
+            url = f'{common_url}/L4/GLOB/UKMO/OSTIA/{year}/{j_day}/{file_name}'
+    
+        response = requests.get(url, stream=True)
+        
+        if file_name.endswith('.bz2') : file_name = file_name.replace('.bz2', '')
+        if not os.path.exists(os.path.join(output_path, dataset_name)) : os.mkdir(os.path.join(output_path, dataset_name))
+            
+        with open(os.path.join(output_path, dataset_name, file_name), 'wb') as out_file:
+            print(f'{dataset_name} downloading...')
+            shutil.copyfileobj(response.raw, out_file)
+            
+        del response
