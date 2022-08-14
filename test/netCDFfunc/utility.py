@@ -495,7 +495,7 @@ def download_data(output_path, start_date=None, end_date=None, dataset_names=Non
         date = most_recent.strftime('%Y%m%d')
         
         j_day = most_recent.strftime('%j')
-        j_day = int(j_day)
+        j_day = '%03d' % int(j_day)
         
     
     if dataset_names == None :
