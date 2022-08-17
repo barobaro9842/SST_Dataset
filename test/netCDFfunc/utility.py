@@ -78,8 +78,8 @@ def to_img(arr, output_path='', date=(), lon=None, lat=None, figsize=(), save_im
 
     if is_anomaly == True :
         cmap = cm.RdBu_r.copy()
-        # vmax = 10.2
-        # vmin = -8
+        vmax = 13
+        vmin = -16
         
     elif is_grade == True :
         vmax = 5
@@ -107,12 +107,13 @@ def to_img(arr, output_path='', date=(), lon=None, lat=None, figsize=(), save_im
         cmap = ListedColormap(new_cmap)
         
     cmap.set_bad(color='gray')
-    cmap.set_under(color=np.array([250/256, 250/256, 250/256, 1]))
+    cmap.set_under(color=np.array([139/256, 0, 255/256, 1]))
+    cmap.set_over(color=np.array([0,1,0,1]))
     
     if type(lat) != np.ndarray or type(lon) != np.ndarray :
         ax.axes.xaxis.set_visible(False)
         ax.axes.yaxis.set_visible(False)
-        if is_anomaly == True : im = plt.imshow(arr, cmap=cmap, origin='lower',)# vmin=vmin, vmax=vmax)
+        if is_anomaly == True : im = plt.imshow(arr, cmap=cmap, origin='lower', vmin=vmin, vmax=vmax)
         elif is_grade == True : im = plt.imshow(arr, cmap=cmap, origin='lower', vmin=vmin)
         else : im = plt.imshow(arr, cmap=cmap, origin='lower')
     else :
@@ -430,53 +431,28 @@ def cropping(arr, region):
         return arr
     
     
-def get_anomaly_heatlevel(ds_in, ds_sst, ds_ice, is_heat_level=False) :
+def get_anomaly_heatlevel(sst, ice, mean, pctl, is_heat_level=False) :
     '''
-    generator
     is_heat_level = False : return anomaly
     is_heat_level = True : return heat_level
-    ds from get_data_by_date (dict{(month,day) : data} type data)
     '''
 
-    for month, day_len in tqdm(zip(range(1,13), days)):
-        for day in range(1,day_len+1):
-            
-            date = dt.date(1000, month,day).strftime('%m%d')
+    np.place(pctl, pctl[:,:]==-999, np.nan)
+    np.place(mean, mean[:,:]==-999, np.nan)
 
-            pctl = np.percentile(ds_in[(month, day)], 90, axis=0)
-            pctl = cropping(pctl, 'rok')
-            np.place(pctl, pctl[:,:]==-999, np.nan)
-            
-            mean = np.mean(ds_in[(month, day)], axis=0)
-            mean = cropping(mean, 'rok')
-            np.place(mean, mean[:,:]==-999, np.nan)
-            
-            sst = ds_sst[(month, day)][0]
-            sst = cropping(sst, 'rok')
-            
-            num_year = np.array(ds_ice[(month, day)]).shape[0]
-            
-            ice_accum = np.sum(ds_ice[(month, day)], axis=0)
-            np.place(ice_accum, ice_accum[:,:] <= num_year * 0.15, False)
-            np.place(ice_accum, ice_accum[:,:] > num_year * 0.15, True)
-            ice_accum = ice_accum.astype(bool)
-            ice_accum = cropping(ice_accum, 'rok')
-            
-            anomaly = sst - mean
-            np.place(anomaly, anomaly[:,:]<0, 0)
-            anomaly = masking(anomaly, np.invert(ice_accum), fill_value=-1)
-            
-            if is_heat_level == False:
-                yield (month,day), anomaly
-
-            
-            elif is_heat_level == True :
-                diff = pctl - mean
-                
-                heat_level = np.ceil(anomaly / diff)
-                heat_level = masking(heat_level, np.invert(ice_accum), fill_value=-1)
-                np.place(heat_level, heat_level[:,:]>5, 5)
-            
-                yield (month,day), heat_level
+    anomaly = sst - mean
+    anomaly = masking(anomaly, ice, fill_value=-50)
+    
+    if is_heat_level == False:
+        return anomaly
+    
+    elif is_heat_level == True :
+        diff = pctl - mean
+        
+        heat_level = np.ceil(anomaly / diff)
+        heat_level = masking(heat_level, ice, fill_value=-1)
+        np.place(heat_level, heat_level[:,:]>5, 5)
+    
+        return heat_level
 
 
