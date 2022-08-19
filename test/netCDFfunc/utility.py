@@ -12,6 +12,7 @@ import requests
 import datetime
 
 import cv2
+import scipy.ndimage as ndimage
 import numpy as np
 from netCDF4 import Dataset
 
@@ -326,17 +327,17 @@ def nc_write(ds_new, title, comment, grid_size,
     for k, v in attr_dict.items():
         ds_new.setncattr(k,v)
 
-    lat_s, lat_e = lat_range
+    lat_s, lat_e = lat_range  # 1358, 1852
     lon_s, lon_e = lon_range
     
     lat_force_cut = None
     lon_force_cut = None
     
-    if grid_size == 0.081 : 
-        lat_force_cut = -1
-        lon_force_cut = -1
-    if grid_size == 0.054 :
-        lat_force_cut = -1
+    # if grid_size == 0.081 : 
+    #     lat_force_cut = -1
+    #     lon_force_cut = -1
+    # if grid_size == 0.054 :
+    #     lat_force_cut = -1
         
         
     lat_grid = np.arange(-90 + (grid_size/2), 90 + (grid_size/2), grid_size)[:lat_force_cut][lat_s:lat_e]
@@ -382,7 +383,7 @@ def nc_write(ds_new, title, comment, grid_size,
                                    'units' : core_variable_unit}
             dtype = core_variable_dtype
             dimensions = ('ntime', 'nlat', 'nlon',)
-            variable_values = core_variable_values[lat_s:lat_e, lon_s:lon_e]
+            variable_values = core_variable_values#[lat_s:lat_e, lon_s:lon_e]
 
 
         fill_value = -999
@@ -422,19 +423,21 @@ def masking(input, mask, fill_value):
         
     
     
-def cropping(arr, region):
+def cropping(arr, region, grid_size):
+    ratio = 0.25 / grid_size
+    
     if region == 'rok':
-        return arr[440:572, 440:600]
+        return arr[int(440 * ratio):int(572 * ratio), int(1160 * ratio):int(1320 * ratio)]
     if region == 'nw':
-        return arr[280:624, 392:1136]
+        return arr[int(280 * ratio):int(624 * ratio), int(392 * ratio):int(1136 * ratio)]
     if region == 'global':
         return arr
     
     
-def get_anomaly_heatlevel(sst, ice, mean, pctl, is_heat_level=False) :
+def get_anomaly_grade(sst, ice, mean, pctl, is_grade=False) :
     '''
-    is_heat_level = False : return anomaly
-    is_heat_level = True : return heat_level
+    is_grade = False : return anomaly
+    is_grade = True : return grade
     '''
 
     np.place(pctl, pctl[:,:]==-999, np.nan)
@@ -443,16 +446,88 @@ def get_anomaly_heatlevel(sst, ice, mean, pctl, is_heat_level=False) :
     anomaly = sst - mean
     anomaly = masking(anomaly, ice, fill_value=-50)
     
-    if is_heat_level == False:
+    if is_grade == False:
         return anomaly
     
-    elif is_heat_level == True :
+    elif is_grade == True :
         diff = pctl - mean
         
-        heat_level = np.ceil(anomaly / diff)
-        heat_level = masking(heat_level, ice, fill_value=-1)
-        np.place(heat_level, heat_level[:,:]>5, 5)
+        grade = np.ceil(anomaly / diff)
+        grade = masking(grade, ice, fill_value=-1)
+        np.place(grade, grade[:,:]>5, 5)
     
-        return heat_level
+        return grade
 
 
+def grid_resize(region, variable, period):
+    
+    '''
+    region = [rok]
+    variable = [avg, pctl, ice]
+    period = [1,2]
+    '''
+    
+    grid_size = [0.01, 0.05, 0.10, 0.081, 0.054, 0.25]
+    
+    base_dir = f'/Volumes/T7/new_data/processed_data/processed_data_{period}_{region}_{variable}' 
+
+    if variable == 'avg' : 
+        variable_name = 'avgsst'
+        variable_standard_name = 'averageSST'
+        variable_unit = 'degree C'
+        variable_dtype = np.float32
+        
+    elif variable == 'pctl' : 
+        variable_name = 'pctlsst'
+        variable_standard_name = '90-percentile SST'
+        variable_unit = 'degree C'
+        variable_dtype = np.float32
+        
+    elif variable == 'ice' : 
+        variable_name = 'ice'
+        variable_standard_name = 'Sea Ice'
+        variable_unit = ''
+        variable_dtype = np.int8
+    
+    for file in tqdm(os.listdir(base_dir)):
+        
+        ds = Dataset(f'{base_dir}/{file}', 'r', format='NETCDF4')
+        
+        value_1 = ds[variable_name][:].data[0] 
+        f_date = file[-7:-3]
+
+        output_dir = f'/Volumes/T7/base_data/{period}/{variable}'
+
+        for grid in grid_size :
+            file_name = f'{variable}_{period}_{region}_{f_date}_{grid}' 
+            
+            nc_path = os.path.join(output_dir, f'{grid}' ,file_name+'.nc')
+            ds_new = Dataset(nc_path, 'w', format='NETCDF4')
+            
+            if period == 1:
+                year_range = '1981~2011'
+                date_range = '1981/8/1 ~ 2011/7/31' 
+            elif period == 2:
+                year_range = '1991~2020'
+                date_range = '1991/1/1 ~ 2020/12/31' 
+                
+            if variable == 'avg':
+                title = f'Global 30 years({year_range}) SST mean data' 
+                comment = f'Average SST calculated {date_range}, regridded to {grid}'
+            elif variable == 'pctl':
+                title = f'Global 30 years({year_range}) 90-percentile data'
+                comment = f'90-percentile SST calculated {date_range}, regridded to {grid}'
+            elif variable == 'ice':
+                title = f'Global 30 years({year_range}) Sea-ice data'
+                comment = f'Calculated {date_range}, pixels more than 15% ice as ice, less than 15% ice as not ice, regridded to {grid}'
+                
+            ratio = 0.25 / grid
+            
+            lat_range = (round(440*ratio), round(572*ratio))
+            lon_range = (round(440*ratio), round(600*ratio))
+
+            data = ndimage.zoom(value_1, ratio, order=0) # nearest interpolation
+            variable_values = data
+
+            ds_new = nc_write(ds_new, title, comment, grid, variable_name, variable_standard_name, variable_unit, variable_dtype, variable_values, lat_range, lon_range)
+            ds_new.close()

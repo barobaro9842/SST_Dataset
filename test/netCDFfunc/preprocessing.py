@@ -8,8 +8,9 @@ import shutil
 import requests
 import datetime
 
+import scipy.ndimage as ndimage
 
-def download_data(output_path, start_date=None, end_date=None, dataset_names=None):
+def download_data(download_path, start_date=None, end_date=None, dataset_names=None):
     ''' 
     start_date and end_date = Tuple (Year, Month, Day)
     
@@ -25,13 +26,23 @@ def download_data(output_path, start_date=None, end_date=None, dataset_names=Non
     if dataset_names == None :
         dataset_names = ['AVHRR', 'CMC', 'DMI', 'GAMSSA', 'MUR25', 'MUR', 'MWIR', 'MW', 'NAVO', 'OSPON', 'OSPO', 'OSTIA']
 
-    if start_date == None and end_date == None : date_range = range(6,0,-1)
+    if start_date == None and end_date == None : 
+        date_range = range(6,0,-1)
+        end_date = datetime.datetime.now()
+    else: 
+        start_date = datetime.datetime.strptime(start_date, '%Y%m%d')
+        end_date = datetime.datetime.strptime(end_date, '%Y%m%d')
+        date_range = range((end_date - start_date).days, -1, -1)
         
     for delta in date_range:
         
-        recent = datetime.datetime.now()-datetime.timedelta(days=delta)
+        #recent = datetime.datetime.now()-datetime.timedelta(days=delta)
+        #year = recent.strftime('%Y')
+        #date = recent.strftime('%Y%m%d')
+        recent = end_date - datetime.timedelta(days=delta)
         year = recent.strftime('%Y')
         date = recent.strftime('%Y%m%d')
+        
         
         j_day = recent.strftime('%j')
         j_day = '%03d' % int(j_day)
@@ -87,11 +98,20 @@ def download_data(output_path, start_date=None, end_date=None, dataset_names=Non
                 url = f'{common_url}/L4/GLOB/UKMO/OSTIA/{year}/{j_day}/{file_name}'
 
             if file_name.endswith('.bz2') : file_name = file_name.replace('.bz2', '')
-            target_file = os.path.join(output_path, dataset_name, file_name)
+            target_file = os.path.join(download_path, dataset_name, file_name)
             
             if os.path.exists(target_file) and os.path.getsize(target_file) > 5 * 1024:
-                print(f'[{date}|{dataset_name}] is already downloaded!')
-                continue
+                if dataset_name == 'MUR' :
+                    if os.path.getsize(target_file) > 600 * 1024 * 1024:    
+                        print(f'[{date}|{dataset_name}] is already downloaded!')
+                        continue
+                else : 
+                    print(f'[{date}|{dataset_name}] is already downloaded!')
+                    continue
+                    
+            
+            
+                
             
             response = requests.get(url, stream=True)
             
@@ -99,7 +119,7 @@ def download_data(output_path, start_date=None, end_date=None, dataset_names=Non
                 print(f'[{date}|{dataset_name}] doesn\'t exist!')
                 continue
             
-            if not os.path.exists(os.path.join(output_path, dataset_name)) : os.mkdir(os.path.join(output_path, dataset_name))
+            if not os.path.exists(os.path.join(download_path, dataset_name)) : os.mkdir(os.path.join(download_path, dataset_name))
             
             with open(target_file, 'wb') as out_file:
                 print(f'[{date}|{dataset_name}] downloading...')
