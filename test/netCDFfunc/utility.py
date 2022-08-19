@@ -459,7 +459,7 @@ def get_anomaly_grade(sst, ice, mean, pctl, is_grade=False) :
         return grade
 
 
-def grid_resize(region, variable, period):
+def _grid_resize(region, variable, period):
     
     '''
     region = [rok]

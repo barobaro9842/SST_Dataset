@@ -8,7 +8,6 @@ import shutil
 import requests
 import datetime
 
-import scipy.ndimage as ndimage
 
 def download_data(download_path, start_date=None, end_date=None, dataset_names=None):
     ''' 
