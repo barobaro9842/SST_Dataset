@@ -5,7 +5,7 @@ from netCDFfunc.processing import *
 
 
 
-def data_processing(download_path, output_path, dataset_names=[], grid_set=[]):
+def data_processing(base_path, download_path, output_path, dataset_names=[], grid_set=[]):
     
     if dataset_names == [] :
         dataset_names = ['AVHRR', 'CMC', 'DMI', 'GAMSSA', 'MUR25', 'MUR', 'MWIR', 'MW', 'NAVO', 'OSPON', 'OSPO', 'OSTIA']
@@ -42,9 +42,9 @@ def data_processing(download_path, output_path, dataset_names=[], grid_set=[]):
             
             # load base data
             for grid_size in grid_set :
-                ds_mean[grid_size] = Dataset(f'/Volumes/T7/base_data/{period}/avg/{grid_size}/avg_{period}_rok_{date[4:]}_{grid_size}.nc', 'r', format='NETCDF4').variables['avgsst'][:].data[0]
-                ds_ice[grid_size] = Dataset(f'/Volumes/T7/base_data/{period}/ice/{grid_size}/ice_{period}_rok_{date[4:]}_{grid_size}.nc', 'r', format='NETCDF4').variables['ice'][:].data[0]
-                ds_pctl[grid_size] = Dataset(f'/Volumes/T7/base_data/{period}/pctl/{grid_size}/pctl_{period}_rok_{date[4:]}_{grid_size}.nc', 'r', format='NETCDF4').variables['pctlsst'][:].data[0]
+                ds_mean[grid_size] = Dataset(f'{base_path}/{period}/avg/{grid_size}/avg_{period}_rok_{date[4:]}_{grid_size}.nc', 'r', format='NETCDF4').variables['avgsst'][:].data[0]
+                ds_ice[grid_size] = Dataset(f'{base_path}/{period}/ice/{grid_size}/ice_{period}_rok_{date[4:]}_{grid_size}.nc', 'r', format='NETCDF4').variables['ice'][:].data[0]
+                ds_pctl[grid_size] = Dataset(f'{base_path}/{period}/pctl/{grid_size}/pctl_{period}_rok_{date[4:]}_{grid_size}.nc', 'r', format='NETCDF4').variables['pctlsst'][:].data[0]
             
             # check ouput data status
             output_date_list = sorted(list(map(get_date, os.listdir(target_path_base))))[-6:]
@@ -84,5 +84,6 @@ if __name__ == '__main__' :
     
     download_path = '/Volumes/T7/download_data'
     output_path = '/Volumes/T7/output_data'
+    base_path = '/Volumes/T7/base_data'
     
-    data_processing(download_path, output_path)
+    data_processing(base_path, download_path, output_path)
