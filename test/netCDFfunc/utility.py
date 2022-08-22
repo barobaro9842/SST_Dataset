@@ -79,7 +79,7 @@ def to_img(arr, output_path='', date=(), lon=None, lat=None, figsize=(), save_im
 
     if is_anomaly == True :
         cmap = cm.RdBu_r.copy()
-        vmax = 13
+        vmax = 16
         vmin = -16
         
     elif is_grade == True :
@@ -107,9 +107,9 @@ def to_img(arr, output_path='', date=(), lon=None, lat=None, figsize=(), save_im
             
         cmap = ListedColormap(new_cmap)
         
-    cmap.set_bad(color='gray')
-    cmap.set_under(color=np.array([139/256, 0, 255/256, 1]))
-    cmap.set_over(color=np.array([0,1,0,1]))
+    cmap.set_bad(color=np.array([70/256,70/256,70/256,1]))
+    cmap.set_under(color=np.array([150/256, 150/256, 150/256, 1]))
+    cmap.set_over(color=np.array([255/256,255/256,132/256,1]))
     
     if type(lat) != np.ndarray or type(lon) != np.ndarray :
         ax.axes.xaxis.set_visible(False)
@@ -458,7 +458,6 @@ def get_anomaly_grade(sst, ice, mean, pctl, is_grade=False) :
     
         return grade
 
-
 def _grid_resize(region, variable, period):
     
     '''
@@ -467,7 +466,7 @@ def _grid_resize(region, variable, period):
     period = [1,2]
     '''
     
-    grid_size = [0.01, 0.05, 0.10, 0.081, 0.054, 0.25]
+    grid_size = [0.01, 0.05, 0.10, 0.081, 0.08789, 0.054, 0.25]
     
     base_dir = f'/Volumes/T7/new_data/processed_data/processed_data_{period}_{region}_{variable}' 
 
@@ -512,7 +511,7 @@ def _grid_resize(region, variable, period):
                 date_range = '1991/1/1 ~ 2020/12/31' 
                 
             if variable == 'avg':
-                title = f'Global 30 years({year_range}) SST mean data' 
+                title = f'Global 30 years({year_range}) SST average data' 
                 comment = f'Average SST calculated {date_range}, regridded to {grid}'
             elif variable == 'pctl':
                 title = f'Global 30 years({year_range}) 90-percentile data'
@@ -529,5 +528,7 @@ def _grid_resize(region, variable, period):
             data = ndimage.zoom(value_1, ratio, order=0) # nearest interpolation
             variable_values = data
 
-            ds_new = nc_write(ds_new, title, comment, grid, variable_name, variable_standard_name, variable_unit, variable_dtype, variable_values, lat_range, lon_range)
+            ds_new = nc_write(ds_new, title, comment, grid, 
+                              variable_name, variable_standard_name, variable_unit, variable_dtype, variable_values, 
+                              lat_range, lon_range)
             ds_new.close()
