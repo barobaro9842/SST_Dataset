@@ -109,13 +109,13 @@ def to_img(arr, output_path='', date=(), lon=None, lat=None, figsize=(), save_im
         
     cmap.set_bad(color=np.array([70/256,70/256,70/256,1]))
     cmap.set_under(color=np.array([150/256, 150/256, 150/256, 1]))
-    cmap.set_over(color=np.array([255/256,255/256,132/256,1]))
+    cmap.set_over(color=np.array([194/256,144/256, 235/256,1]))
     
     if type(lat) != np.ndarray or type(lon) != np.ndarray :
         ax.axes.xaxis.set_visible(False)
         ax.axes.yaxis.set_visible(False)
         if is_anomaly == True : im = plt.imshow(arr, cmap=cmap, origin='lower', vmin=vmin, vmax=vmax)
-        elif is_grade == True : im = plt.imshow(arr, cmap=cmap, origin='lower', vmin=vmin)
+        elif is_grade == True : im = plt.imshow(arr, cmap=cmap, origin='lower', vmin=vmin, vmax=vmax)
         else : im = plt.imshow(arr, cmap=cmap, origin='lower')
     else :
         im = plt.imshow(arr, cmap=cmap, origin='lower', extent=[lon.min(), lon.max(), lat.min(), lat.max()], vmin=vmin, vmax=vmax) 
@@ -452,10 +452,15 @@ def get_anomaly_grade(sst, ice, mean, pctl, is_grade=False) :
     elif is_grade == True :
         diff = pctl - mean
         
+        
         grade = np.ceil(anomaly / diff)
-        grade = masking(grade, ice, fill_value=-1)
-        np.place(grade, grade[:,:]>5, 5)
+        
+        np.place(grade, grade[:,:] <= 0, 0)
+        np.place(grade, (1000>grade[:,:]) & (grade[:,:] >5), 5)
+        np.place(grade,grade[:,:]>=1000, 10)
     
+        grade = masking(grade, ice, fill_value=-1)
+        
         return grade
 
 def _grid_resize(region, variable, period):
