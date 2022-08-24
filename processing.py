@@ -4,30 +4,46 @@ from netCDFfunc.utility import *
 from netCDFfunc.processing_tools import *
 import argparse
 
-# def to_nc(args, data, grid, date):
+def to_nc(nc_file_path, data, period, region, grid, date, is_grade=False):
     
-#     output_dir = args.output_path
-#     variable_name = 'anomalysst'
-#     variable_standard_name = 'SST Anomaly'
-#     variable_unit = 'degree C'
-#     variable_dtype = np.float32
-
-#     file_name = f'test' 
+    if is_grade == False :
+        variable_name = 'anomalysst'
+        variable_standard_name = 'SST Anomaly'
+        variable_unit = 'degree C'
+        variable_dtype = np.float32
     
-#     nc_path = os.path.join(output_dir,file_name+'.nc')
-#     ds_new = Dataset(nc_path, 'w', format='NETCDF4')
-
-#     title = f'ROK 30 years(1991~2020) base SST anomaly data ({date})' 
-#     comment = f'Average SST calculated 1991/1/1~2020/12/31'
+    elif is_grade == True :
+        variable_name = 'grade'
+        variable_standard_name = 'abnormal sst grade'
+        variable_unit = 'degree C'
+        variable_dtype = np.float32
     
-#     variable_values = data
-#     lat_range = (440, 572)
-#     lon_range = (440, 600)
+    ds_new = Dataset(nc_file_path, 'w', format='NETCDF4')
 
-#     ds_new = nc_write(ds_new, title, comment, grid, 
-#                         variable_name, variable_standard_name, variable_unit, variable_dtype, variable_values, 
-#                         lat_range, lon_range)
-#     ds_new.close()
+    if period == 1 :
+        year_range = '1981~2011'
+        date_range = '1981/9/1~2011/8/31'
+    elif period == 2 :
+        year_range = '1991~2020'
+        date_range = '1991/1/1~2020/12/31'
+
+    if is_grade == True : 
+        data_type = 'grade'
+    elif is_grade == False : 
+        data_type = 'anomaly'
+    
+    title = f'{region} 30 years({year_range}) base SST {data_type} data ({date})' 
+    comment = f'SST based on {date_range}'
+    variable_values = data
+    ratio = 0.25 / grid
+    
+    lat_range = (round(440*ratio), round(572*ratio))
+    lon_range = (round(440*ratio), round(600*ratio))
+
+    ds_new = nc_write(ds_new, title, comment, grid, 
+                      variable_name, variable_standard_name, variable_unit, variable_dtype, variable_values, 
+                      lat_range, lon_range)
+    ds_new.close()
 
 def data_processing(args):
     
@@ -70,14 +86,18 @@ def data_processing(args):
             img_path = os.path.join(target_path_base, 'img')
             if not os.path.exists(img_path) : os.mkdir(img_path)
             
+            nc_path = os.path.join(target_path_base, 'nc')
+            if not os.path.exists(nc_path) : os.mkdir(nc_path)
+            
             anomaly_img_path, grade_img_path = get_path(img_path, date)
+            anomaly_nc_path, grade_nc_path = get_path(nc_path, date)
             
             anomaly_img_file_path = os.path.join(anomaly_img_path, f'{raw_data_file_name}_{region}_anomaly.png')
-            if os.path.exists(anomaly_img_file_path):
-                continue
-            
             grade_img_file_path = os.path.join(grade_img_path, f'{raw_data_file_name}_{region}_grade.png')
-            if os.path.exists(grade_img_file_path):
+            anomaly_nc_file_path = os.path.join(anomaly_nc_path, f'{raw_data_file_name}_{region}_anomaly.nc')
+            grade_nc_file_path = os.path.join(grade_nc_path, f'{raw_data_file_name}_{region}_grade.nc')
+            
+            if os.path.exists(anomaly_img_file_path) and os.path.exists(grade_img_file_path) and os.path.exists(anomaly_nc_file_path) and os.path.exists(grade_nc_file_path):
                 continue
             
             if int(date) <= 20201231 :
@@ -95,15 +115,6 @@ def data_processing(args):
                 ds_mean[grid_size] = Dataset(f'{base_data_path}/{period}/avg/{grid_size}/avg_{period}_{region}_{date[4:]}_{grid_size}.nc', 'r', format='NETCDF4').variables['avgsst'][:].data[0]
                 ds_ice[grid_size] = Dataset(f'{base_data_path}/{period}/ice/{grid_size}/ice_{period}_{region}_{date[4:]}_{grid_size}.nc', 'r', format='NETCDF4').variables['ice'][:].data[0]
                 ds_pctl[grid_size] = Dataset(f'{base_data_path}/{period}/pctl/{grid_size}/pctl_{period}_{region}_{date[4:]}_{grid_size}.nc', 'r', format='NETCDF4').variables['pctlsst'][:].data[0]
-            
-            # check ouput data status
-            # output_date_list = sorted(list(map(get_date, os.listdir(target_path_base))))[-k_day:]
-            # target_path = os.path.join(target_path_base, date)
-            # if date not in output_date_list and not os.path.exists(target_path):
-            #     os.mkdir(target_path)
-                
-            # overlap check
-            # if len(os.listdir(target_path)) == 4 : continue
             
             # data processing
             meta_data_dic = get_meta_data(raw_data_path, date, raw_data_file_name)
@@ -124,20 +135,17 @@ def data_processing(args):
             
             ice = base_ice + ice
 
-            # img save
+            
             anomaly = get_anomaly_grade(sst, ice, mean, pctl)
-            np.place(anomaly, anomaly[:,:] > 10000, 32767)
-            
-            to_img(anomaly, output_path=anomaly_img_file_path, is_anomaly=True, save_img=True)
-            np.place(anomaly, anomaly[:,:] == 32767, np.nan)
-            
             grade = get_anomaly_grade(sst, ice, mean, pctl, is_grade=True)
-            to_img(grade, output_path=grade_img_file_path, is_grade=True, save_img=True)
-            np.place(grade, grade[:,:] == 10, np.nan)
             
+            # img save
+            to_img(anomaly, output_path=anomaly_img_file_path, is_anomaly=True, save_img=True)
+            to_img(grade, output_path=grade_img_file_path, is_grade=True, save_img=True)
             
             # nc write
-            # to_nc(args, anomaly, grid, date)
+            to_nc(anomaly_nc_file_path, anomaly, period, region, grid, date)
+            to_nc(grade_nc_file_path, grade, period, region, grid, date, is_grade=True)
             
             
 if __name__ == '__main__' :

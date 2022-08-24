@@ -95,14 +95,19 @@ def to_img(arr, output_path='', date=(), lon=None, lat=None, figsize=(), save_im
         new_cmap = np.array([grade_0, grade_1, grade_2, grade_3, grade_4, grade_5])
 
         if 5 not in arr :
+            vmax = 4
             new_cmap = new_cmap[:-1]
             if 4 not in arr :
+                vmax = 3
                 new_cmap = new_cmap[:-1]
                 if 3 not in arr :
+                    vmax = 2
                     new_cmap = new_cmap[:-1]
                     if 2 not in arr :
+                        vmax = 1
                         new_cmap = new_cmap[:-1]
                         if 1 not in arr :
+                            vmax = 0
                             new_cmap = new_cmap[:-1]
             
         cmap = ListedColormap(new_cmap)
@@ -130,8 +135,9 @@ def to_img(arr, output_path='', date=(), lon=None, lat=None, figsize=(), save_im
         ax.set_yticklabels(y_labels)
     
     divider = make_axes_locatable(gca_ax)
-    cax = divider.append_axes("right", size="3%", pad=0.1)
-    if is_grade != True : 
+    
+    if is_grade != True :
+        cax = divider.append_axes("right", size="3%", pad=0.1)
         plt.colorbar(im, cax=cax)
     
     plt.text(-30,0.9,f'{date}',{'fontsize':30}, transform=plt.gca().transAxes, va='top', ha='left')
@@ -445,6 +451,7 @@ def get_anomaly_grade(sst, ice, mean, pctl, is_grade=False) :
 
     anomaly = sst - mean
     anomaly = masking(anomaly, ice, fill_value=-50)
+    np.place(anomaly, anomaly[:,:] > 10000, 32767)
     
     if is_grade == False:
         return anomaly
