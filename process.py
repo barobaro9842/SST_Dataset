@@ -45,7 +45,7 @@ def to_nc(nc_file_path, data, period, region, grid, date, is_grade=False):
                       lat_range, lon_range)
     ds_new.close()
 
-def data_processing(args):
+def process_data(args):
     
     base_data_path = args.base_data_path
     raw_path = args.raw_path
@@ -167,4 +167,4 @@ if __name__ == '__main__' :
     
     args = parser.parse_args()
     
-    data_processing(args)
+    process_data(args)
