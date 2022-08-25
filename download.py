@@ -9,7 +9,6 @@ import datetime
 import argparse
 
 import signal
-import time
 
 
 def download_data(args):
@@ -114,7 +113,7 @@ def download_data(args):
                 min_file_size = 151921 * 1024
 
             if file_name.endswith('.bz2') : file_name = file_name.replace('.bz2', '')
-            target_file = os.path.join(download_path, dataset_name, year, file_name)
+            target_file = os.path.join(download_path, dataset_name, file_name)
             
             
             if os.path.exists(target_file) and os.path.getsize(target_file) > min_file_size * 0.95:
@@ -129,9 +128,7 @@ def download_data(args):
             
             d_path = os.path.join(download_path, dataset_name)
             if not os.path.exists(d_path) : os.mkdir(d_path)
-                
-            y_path = os.path.join(d_path, year)
-            if not os.path.exists(y_path) : os.mkdir(y_path)
+            
             
             
             with open(target_file, 'wb') as out_file:
