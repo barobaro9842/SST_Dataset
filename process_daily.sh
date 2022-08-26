@@ -1,1 +1,1 @@
-python processing.py --k_day 6 --region rok
+python process.py --k_day 6 --region rok
