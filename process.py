@@ -47,7 +47,7 @@ def to_nc(nc_file_path, data, period, region, grid, date, is_grade=False):
 
 def process_data(args):
     
-    base_data_path = args.base_data_path
+    reference_data_path = args.reference_data_path
     raw_path = args.raw_path
     output_path = args.output_path
     
@@ -57,7 +57,7 @@ def process_data(args):
     grid_set = args.grid_set
     
     if dataset_names == [] :
-        dataset_names = ['AVHRR', 'CMC', 'DMI', 'GAMSSA', 'MUR25', 'MUR', 'MWIR', 'MW', 'NAVO', 'OSPON', 'OSPO', 'OSTIA']
+        dataset_names = ['AVHRR_OI_SST/v2.1', 'CMC/deg0.1', 'DMI_SST', 'GAMSSA_GDS2', 'MUR_SST', 'MW_IR_SST', 'MW_OI_SST', 'NAVO_K10_SST_GDS2', 'OSPO_SST_Night', 'OSPO_SST', 'OSTIA_SST']
     if grid_set == []:
         grid_set = ['0.01', '0.05', '0.054', '0.081', '0.08789', '0.1', '0.25']
 
@@ -112,9 +112,9 @@ def process_data(args):
             # load base data
             for grid_size in grid_set :
                 
-                ds_mean[grid_size] = Dataset(f'{base_data_path}/{period}/avg/{grid_size}/avg_{period}_{region}_{date[4:]}_{grid_size}.nc', 'r', format='NETCDF4').variables['avgsst'][:].data[0]
-                ds_ice[grid_size] = Dataset(f'{base_data_path}/{period}/ice/{grid_size}/ice_{period}_{region}_{date[4:]}_{grid_size}.nc', 'r', format='NETCDF4').variables['ice'][:].data[0]
-                ds_pctl[grid_size] = Dataset(f'{base_data_path}/{period}/pctl/{grid_size}/pctl_{period}_{region}_{date[4:]}_{grid_size}.nc', 'r', format='NETCDF4').variables['pctlsst'][:].data[0]
+                ds_mean[grid_size] = Dataset(f'{reference_data_path}/{period}/avg/{grid_size}/avg_{period}_{region}_{date[4:]}_{grid_size}.nc', 'r', format='NETCDF4').variables['avgsst'][:].data[0]
+                ds_ice[grid_size] = Dataset(f'{reference_data_path}/{period}/ice/{grid_size}/ice_{period}_{region}_{date[4:]}_{grid_size}.nc', 'r', format='NETCDF4').variables['ice'][:].data[0]
+                ds_pctl[grid_size] = Dataset(f'{reference_data_path}/{period}/pctl/{grid_size}/pctl_{period}_{region}_{date[4:]}_{grid_size}.nc', 'r', format='NETCDF4').variables['pctlsst'][:].data[0]
             
             # data processing
             meta_data_dic = get_meta_data(raw_data_path, date, raw_data_file_name)
@@ -150,13 +150,13 @@ def process_data(args):
             
 if __name__ == '__main__' :
     
-    raw_path = '/Volumes/T7/download_data'
-    output_path = '/Volumes/T7/output_data'
-    base_data_path = '/Volumes/T7/base_data'
+    raw_path = os.path.join('D:', 'reference_data')
+    output_path = os.path.join('D:', 'output')
+    reference_data_path = os.path.join('D:', 'reference_data')
     
     parser = argparse.ArgumentParser()
     
-    parser.add_argument('--base_data_path', type=str, default=base_data_path, help='path of 30 years base files')
+    parser.add_argument('--reference_data_path', type=str, default=reference_data_path, help='path of 30 years reference files')
     parser.add_argument('--output_path', type=str, default=output_path, help='path of output files')
     parser.add_argument('--raw_path', type=str, default=raw_path, help='path of raw files')
     
