@@ -57,14 +57,18 @@ def process_data(args):
     grid_set = args.grid_set
     
     if dataset_names == [] :
-        dataset_names = ['AVHRR_OI_SST/v2.1', 'CMC/deg0.1', 'DMI_SST', 'GAMSSA_GDS2', 'MUR_SST', 'MW_IR_SST', 'MW_OI_SST', 'NAVO_K10_SST_GDS2', 'OSPO_SST_Night', 'OSPO_SST', 'OSTIA_SST']
+        dataset_names = ['AVHRR_OI_SST', 'CMC', 'DMI_SST', 'GAMSSA_GDS2', 'MUR_SST', 'MW_IR_SST', 'MW_OI_SST', 'NAVO_K10_SST_GDS2', 'OSPO_SST_Night', 'OSPO_SST', 'OSTIA_SST']
     if grid_set == []:
         grid_set = ['0.01', '0.05', '0.054', '0.081', '0.08789', '0.1', '0.25']
 
     for ds_name in dataset_names :
         
         print(f'{ds_name} processing...')
-            
+        if ds_name == 'AVHRR_OI_SST':
+            raw_ds_name = os.path.join(ds_name, 'v2.1')
+        if ds_name == 'CMC' :
+            raw_ds_name = os.path.join(ds_name, 'deg0.10')
+
         # anomally and grade save location
         target_path_base = os.path.join(output_path, ds_name)
         
@@ -72,10 +76,13 @@ def process_data(args):
             os.mkdir(target_path_base)
             
         # get recent 6 days' raw nc file date list
-        raw_data_path = os.path.join(raw_path, ds_name)
+
+        ##################년도 폴더어떻게 처리할건지######################
+        raw_data_path = os.path.join(raw_path, raw_ds_name)
         raw_data_name = os.listdir(raw_data_path)[-1][8:]
         
         raw_data_date_list = sorted(list(map(get_date, os.listdir(raw_data_path))))[-k_day:]
+        ###############################################
         
         # process data by date
         for date in raw_data_date_list:
@@ -150,7 +157,7 @@ def process_data(args):
             
 if __name__ == '__main__' :
     
-    raw_path = os.path.join('D:', 'reference_data')
+    raw_path = os.path.join('D:', 'raw_data')
     output_path = os.path.join('D:', 'output')
     reference_data_path = os.path.join('D:', 'reference_data')
     
