@@ -164,8 +164,10 @@ def to_csv(nc_file_path, csv_file_path, include_null=False) :
     
     if 'anomaly' in nc_file_path :
         data = ds['anomalysst'][:].data
+        column_name = 'anomaly'
     elif 'grade' in nc_file_path :
         data = ds['grade'][:].data
+        column_name = 'grade'
     lat_range = ds['lat'][:]
     lon_range = ds['lon'][:]
     
@@ -177,8 +179,8 @@ def to_csv(nc_file_path, csv_file_path, include_null=False) :
                 continue
             
             d_stack.append((round(lat_range[i],4), round(lon_range[j],4), data[0][i][j]))
-            
-    df = pd.DataFrame(d_stack, columns=['lat', 'lon', 'sst'])
+        
+    df = pd.DataFrame(d_stack, columns=['lat', 'lon', column_name])
     df.to_csv(csv_file_path, index=False)
     
     ds.close()
