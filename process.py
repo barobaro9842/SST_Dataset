@@ -2,48 +2,9 @@ from netCDF4 import Dataset
 from netCDFfunc.preprocessing import *
 from netCDFfunc.utility import *
 from netCDFfunc.processing_tools import *
+
 import argparse
-
-def to_nc(nc_file_path, data, period, region, grid, date, is_grade=False):
-    
-    if is_grade == False :
-        variable_name = 'anomalysst'
-        variable_standard_name = 'SST Anomaly'
-        variable_unit = 'degree C'
-        variable_dtype = np.float32
-    
-    elif is_grade == True :
-        variable_name = 'grade'
-        variable_standard_name = 'abnormal sst grade'
-        variable_unit = 'degree C'
-        variable_dtype = np.float32
-    
-    ds_new = Dataset(nc_file_path, 'w', format='NETCDF4')
-
-    if period == 1 :
-        year_range = '1981~2011'
-        date_range = '1981/9/1~2011/8/31'
-    elif period == 2 :
-        year_range = '1991~2020'
-        date_range = '1991/1/1~2020/12/31'
-
-    if is_grade == True : 
-        data_type = 'grade'
-    elif is_grade == False : 
-        data_type = 'anomaly'
-    
-    title = f'{region} 30 years({year_range}) base SST {data_type} data ({date})' 
-    comment = f'SST based on {date_range}'
-    variable_values = data
-    ratio = 0.25 / grid
-    
-    lat_range = (round(440*ratio), round(572*ratio))
-    lon_range = (round(440*ratio), round(600*ratio))
-
-    ds_new = nc_write(ds_new, title, comment, grid, 
-                      variable_name, variable_standard_name, variable_unit, variable_dtype, variable_values, 
-                      lat_range, lon_range)
-    ds_new.close()
+import pandas as pd
 
 def process_data(args):
     
@@ -89,13 +50,21 @@ def process_data(args):
             nc_path = os.path.join(target_path_base, 'nc')
             if not os.path.exists(nc_path) : os.mkdir(nc_path)
             
+            csv_path = os.path.join(target_path_base, 'csv')
+            if not os.path.exists(csv_path) : os.mkdir(csv_path)
+            
             anomaly_img_path, grade_img_path = get_path(img_path, date)
             anomaly_nc_path, grade_nc_path = get_path(nc_path, date)
+            anomaly_csv_path, grade_csv_path = get_path(csv_path, date)
             
             anomaly_img_file_path = os.path.join(anomaly_img_path, f'{raw_data_file_name}_{region}_anomaly.png')
             grade_img_file_path = os.path.join(grade_img_path, f'{raw_data_file_name}_{region}_grade.png')
+            
             anomaly_nc_file_path = os.path.join(anomaly_nc_path, f'{raw_data_file_name}_{region}_anomaly.nc')
             grade_nc_file_path = os.path.join(grade_nc_path, f'{raw_data_file_name}_{region}_grade.nc')
+            
+            anomaly_csv_file_path = os.path.join(anomaly_csv_path, f'{raw_data_file_name}_{region}_anomaly.csv')
+            grade_csv_file_path = os.path.join(grade_csv_path, f'{raw_data_file_name}_{region}_grade.csv')
             
             if os.path.exists(anomaly_img_file_path) and os.path.exists(grade_img_file_path) and os.path.exists(anomaly_nc_file_path) and os.path.exists(grade_nc_file_path):
                 continue
@@ -147,7 +116,10 @@ def process_data(args):
             to_nc(anomaly_nc_file_path, anomaly, period, region, grid, date)
             to_nc(grade_nc_file_path, grade, period, region, grid, date, is_grade=True)
             
-            
+            # nc to csv
+            to_csv(anomaly_nc_file_path, anomaly_csv_file_path, include_null=False)
+            to_csv(grade_nc_file_path, grade_csv_file_path, include_null=False)
+    
 if __name__ == '__main__' :
     
     raw_path = '/Volumes/T7/download_data'

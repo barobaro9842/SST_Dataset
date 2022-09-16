@@ -95,14 +95,19 @@ def to_img(arr, output_path='', date=(), lon=None, lat=None, figsize=(), save_im
         new_cmap = np.array([grade_0, grade_1, grade_2, grade_3, grade_4, grade_5])
 
         if 5 not in arr :
+            vmax = 4
             new_cmap = new_cmap[:-1]
             if 4 not in arr :
+                vmax = 3
                 new_cmap = new_cmap[:-1]
                 if 3 not in arr :
+                    vmax = 2
                     new_cmap = new_cmap[:-1]
                     if 2 not in arr :
+                        vmax = 1
                         new_cmap = new_cmap[:-1]
                         if 1 not in arr :
+                            vmax = 0
                             new_cmap = new_cmap[:-1]
             
         cmap = ListedColormap(new_cmap)
@@ -334,15 +339,20 @@ def nc_write(ds_new, title, comment, grid_size,
     lat_force_cut = None
     lon_force_cut = None
     
-    # if grid_size == 0.081 : 
-    #     lat_force_cut = -1
-    #     lon_force_cut = -1
-    # if grid_size == 0.054 :
-    #     lat_force_cut = -1
+    if grid_size == 0.081 : 
+        lat_force_cut = -1
+        lon_force_cut = -1
+    if grid_size == 0.054 :
+        lat_force_cut = -1
+    if grid_size == 0.08789 :
+        lat_force_cut = -1
+        lon_force_cut = -1
         
         
     lat_grid = np.arange(-90 + (grid_size/2), 90 + (grid_size/2), grid_size)[:lat_force_cut][lat_s:lat_e]
     lon_grid = np.arange(0 + (grid_size/2), 360 + (grid_size/2), grid_size)[:lon_force_cut][lon_s:lon_e]
+    print(len(lat_grid))
+    print(len(lon_grid))
     
     # set dimension
     dim_dict = {'ntime' : 1,
@@ -446,6 +456,7 @@ def get_anomaly_grade(sst, ice, mean, pctl, is_grade=False) :
 
     anomaly = sst - mean
     anomaly = masking(anomaly, ice, fill_value=-50)
+    np.place(anomaly, anomaly[:,:] > 10000, 32767)
     
     if is_grade == False:
         return anomaly
