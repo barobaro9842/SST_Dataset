@@ -2,6 +2,7 @@ from netCDF4 import Dataset
 from netCDFfunc.utility import *
 
 import numpy as np
+import pandas as pd
 
 import os
 
@@ -115,3 +116,66 @@ def get_path(base_path, date):
     if not os.path.exists(grade_path) : os.mkdir(grade_path)
     
     return anomaly_path, grade_path
+
+
+def to_nc(nc_file_path, data, period, region, grid, date, is_grade=False):
+    
+    if is_grade == False :
+        variable_name = 'anomalysst'
+        variable_standard_name = 'SST Anomaly'
+        variable_unit = 'degree C'
+        variable_dtype = np.float32
+    
+    elif is_grade == True :
+        variable_name = 'grade'
+        variable_standard_name = 'abnormal sst grade'
+        variable_unit = 'degree C'
+        variable_dtype = np.float32
+    
+    ds_new = Dataset(nc_file_path, 'w', format='NETCDF4')
+
+    if period == 1 :
+        year_range = '1981~2011'
+        date_range = '1981/9/1~2011/8/31'
+    elif period == 2 :
+        year_range = '1991~2020'
+        date_range = '1991/1/1~2020/12/31'
+
+    if is_grade == True : 
+        data_type = 'grade'
+    elif is_grade == False : 
+        data_type = 'anomaly'
+    
+    title = f'{region} 30 years({year_range}) base SST {data_type} data ({date})' 
+    comment = f'SST based on {date_range}'
+    variable_values = data
+    ratio = 0.25 / grid
+    
+    lat_range = (round(440*ratio), round(572*ratio))
+    lon_range = (round(440*ratio), round(600*ratio))
+
+    ds_new = nc_write(ds_new, title, comment, grid, 
+                      variable_name, variable_standard_name, variable_unit, variable_dtype, variable_values, 
+                      lat_range, lon_range)
+    ds_new.close()
+    
+    
+def to_csv(nc_file_path, csv_file_path, include_null=False) :
+    
+    d_stack = []
+    ds = Dataset(nc_file_path, 'r', format='NETCDF4')
+    
+    data = ds['avgsst'][:].data
+    lat_range = ds['lat'][:]
+    lon_range = ds['lon'][:]
+    
+    for i in range(len(lat_range)) :
+        for j in range(len(lat_range)):
+            if include_null == False and data[0][i][j] == -999:
+                continue
+            d_stack.append((lat_range[i], lon_range[j], data[0][i][j]))
+            
+    df = pd.DataFrame(d_stack, columns=['lat', 'lon', 'sst'])
+    df.to_csv(csv_file_path, index=False)
+    
+    ds.close()
