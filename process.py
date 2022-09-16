@@ -20,15 +20,17 @@ def process_data(args):
     if dataset_names == [] :
         dataset_names = ['AVHRR_OI_SST', 'CMC', 'DMI_SST', 'GAMSSA_GDS2', 'MUR_SST', 'MW_IR_SST', 'MW_OI_SST', 'NAVO_K10_SST_GDS2', 'OSPO_SST_Night', 'OSPO_SST', 'OSTIA_SST']
     if grid_set == []:
-        grid_set = ['0.01', '0.05', '0.054', '0.081', '0.08789', '0.1', '0.25']
+        grid_set = ['0.05', '0.054', '0.081', '0.08789', '0.1', '0.25'] #'0.01', 
 
     for ds_name in dataset_names :
         
         print(f'{ds_name} processing...')
         if ds_name == 'AVHRR_OI_SST':
             raw_ds_name = os.path.join(ds_name, 'v2.1')
-        if ds_name == 'CMC' :
-            raw_ds_name = os.path.join(ds_name, 'deg0.10')
+        elif ds_name == 'CMC' :
+            raw_ds_name = os.path.join(ds_name, 'deg0.1')
+        else :
+            raw_ds_name = ds_name
 
         # anomally and grade save location
         target_path_base = os.path.join(output_path, ds_name)
@@ -38,12 +40,11 @@ def process_data(args):
             
         # get recent 6 days' raw nc file date list
 
-        ##################년도 폴더어떻게 처리할건지######################
-        raw_data_path = os.path.join(raw_path, raw_ds_name)
+        # year folder problem ################################
+        raw_data_path = os.path.join(raw_path, raw_ds_name, '2022')
         raw_data_name = os.listdir(raw_data_path)[-1][8:]
         
         raw_data_date_list = sorted(list(map(get_date, os.listdir(raw_data_path))))[-k_day:]
-        ###############################################
         
         # process data by date
         for date in raw_data_date_list:
@@ -64,14 +65,15 @@ def process_data(args):
             anomaly_nc_path, grade_nc_path = get_path(nc_path, date)
             anomaly_csv_path, grade_csv_path = get_path(csv_path, date)
             
-            anomaly_img_file_path = os.path.join(anomaly_img_path, f'{raw_data_file_name}_{region}_anomaly.png')
-            grade_img_file_path = os.path.join(grade_img_path, f'{raw_data_file_name}_{region}_grade.png')
+            raw_data_file_name_new = raw_data_file_name.replace('nc','')
+            anomaly_img_file_path = os.path.join(anomaly_img_path, f'{raw_data_file_name_new}_{region}_anomaly.png')
+            grade_img_file_path = os.path.join(grade_img_path, f'{raw_data_file_name_new}_{region}_grade.png')
             
-            anomaly_nc_file_path = os.path.join(anomaly_nc_path, f'{raw_data_file_name}_{region}_anomaly.nc')
-            grade_nc_file_path = os.path.join(grade_nc_path, f'{raw_data_file_name}_{region}_grade.nc')
+            anomaly_nc_file_path = os.path.join(anomaly_nc_path, f'{raw_data_file_name_new}_{region}_anomaly.nc')
+            grade_nc_file_path = os.path.join(grade_nc_path, f'{raw_data_file_name_new}_{region}_grade.nc')
             
-            anomaly_csv_file_path = os.path.join(anomaly_csv_path, f'{raw_data_file_name}_{region}_anomaly.csv')
-            grade_csv_file_path = os.path.join(grade_csv_path, f'{raw_data_file_name}_{region}_grade.csv')
+            anomaly_csv_file_path = os.path.join(anomaly_csv_path, f'{raw_data_file_name_new}_{region}_anomaly.csv')
+            grade_csv_file_path = os.path.join(grade_csv_path, f'{raw_data_file_name_new}_{region}_grade.csv')
             
             if os.path.exists(anomaly_img_file_path) and os.path.exists(grade_img_file_path) and os.path.exists(anomaly_nc_file_path) and os.path.exists(grade_nc_file_path):
                 continue
@@ -101,7 +103,7 @@ def process_data(args):
             sst = cropping(sst, region, grid)
             ice = cropping(ice, region, grid).astype(bool)
             
-            if region == 'rok' and ds_name == 'MWIR':
+            if region == 'rok' and ds_name == 'MW_IR_SST':
                 ice = ice[:-1,:]
                 sst = sst[:-1,:]
             
@@ -111,7 +113,6 @@ def process_data(args):
             
             ice = base_ice + ice
 
-            
             anomaly = get_anomaly_grade(sst, ice, mean, pctl)
             grade = get_anomaly_grade(sst, ice, mean, pctl, is_grade=True)
             
@@ -129,9 +130,11 @@ def process_data(args):
     
 if __name__ == '__main__' :
     
-    raw_path = os.path.join('D:', 'raw_data')
-    output_path = os.path.join('D:', 'output')
-    reference_data_path = os.path.join('D:', 'reference_data')
+    volume_name = os.path.join('/Volumes', 'T7')
+    #volume_name = 'D:'
+    raw_path = os.path.join(volume_name, 'raw_data')
+    output_path = os.path.join(volume_name, 'output')
+    reference_data_path = os.path.join(volume_name, 'reference_data')
     
     parser = argparse.ArgumentParser()
     

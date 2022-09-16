@@ -336,34 +336,27 @@ def nc_write(ds_new, title, comment, grid_size,
     lat_s, lat_e = lat_range  # 1358, 1852
     lon_s, lon_e = lon_range
     
-    ratio = 0.25/grid_size 
-    lat_s, lat_e = int(lat_s*ratio), int(lat_e*ratio)
-    lon_s, lon_e = int(lon_s*ratio), int(lon_e*ratio)
-    
     lat_force_cut = None
     lon_force_cut = None
     
-    print(core_variable_values.shape)
     if grid_size == 0.081 : 
         lat_force_cut = -1
         lon_force_cut = -1
-    if grid_size == 0.054:
+    if grid_size == 0.054 :
         lat_force_cut = -1
     if grid_size == 0.08789 :
         lat_force_cut = -1
         lon_force_cut = -1
         
-       
+        
     lat_grid = np.arange(-90 + (grid_size/2), 90 + (grid_size/2), grid_size)[:lat_force_cut][lat_s:lat_e]
     lon_grid = np.arange(0 + (grid_size/2), 360 + (grid_size/2), grid_size)[:lon_force_cut][lon_s:lon_e]
-    print(len(lat_grid))
-    print(len(lon_grid))
     
     # set dimension
     dim_dict = {'ntime' : 1,
                 'nlat' : len(lat_grid),
                 'nlon' : len(lon_grid)}
-    
+
     for k, v in dim_dict.items():
         ds_new.createDimension(k,v)
 
@@ -467,7 +460,6 @@ def get_anomaly_grade(sst, ice, mean, pctl, is_grade=False) :
     elif is_grade == True :
         diff = pctl - mean
         
-        
         grade = np.ceil(anomaly / diff)
         
         np.place(grade, grade[:,:] <= 0, 0)
@@ -478,7 +470,7 @@ def get_anomaly_grade(sst, ice, mean, pctl, is_grade=False) :
         
         return grade
 
-def _grid_resize(region, variable, period):
+def grid_resize(region, variable, period, volume_name):
     
     '''
     region = [rok]
@@ -486,9 +478,9 @@ def _grid_resize(region, variable, period):
     period = [1,2]
     '''
     
-    grid_size = [0.01, 0.05, 0.10, 0.081, 0.08789, 0.054, 0.25]
+    grid_size = [0.05, 0.1, 0.081, 0.08789, 0.054, 0.25]#0.01, 
     
-    base_dir = os.path.join('D:', 'other_data', 'processed_data', f'processed_data_{period}_{region}_{variable}') 
+    base_dir = os.path.join(volume_name, 'new_data', 'processed_data', f'processed_data_{period}_{region}_{variable}') 
 
     if variable == 'avg' : 
         variable_name = 'avgsst'
@@ -515,12 +507,18 @@ def _grid_resize(region, variable, period):
         value_1 = ds[variable_name][:].data[0] 
         f_date = file[-7:-3]
 
-        output_dir = os.path.join('D:', 'base_data', str(period), variable)
+        output_dir = volume_name
+        for folder in ['reference_data', str(period), variable] :
+            output_dir = os.path.join(output_dir, folder)
+            if not os.path.exists(output_dir) : os.mkdir(output_dir)
 
         for grid in grid_size :
             file_name = f'{variable}_{period}_{region}_{f_date}_{grid}' 
             
-            nc_path = os.path.join(output_dir, f'{grid}' ,file_name+'.nc')
+            output_dir_fin = os.path.join(output_dir, f'{grid}')
+            if not os.path.exists(output_dir_fin) : os.mkdir(output_dir_fin)
+            
+            nc_path = os.path.join(output_dir_fin ,file_name+'.nc')
             ds_new = Dataset(nc_path, 'w', format='NETCDF4')
             
             if period == 1:

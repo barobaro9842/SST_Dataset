@@ -38,7 +38,6 @@ def get_meta_data(raw_data_path, date, file_name):
     
     return {'sst':sst, 'mask':mask, 'ice':ice, 'lat':lat, 'lon':lon, 'grid':grid}
 
-
 def preprocessing_dataset(ds_name, data_dic) :
     
     sst = data_dic['sst'].copy()
@@ -57,11 +56,12 @@ def preprocessing_dataset(ds_name, data_dic) :
         sst = np.roll(sst, -1, axis=1)
         ice = np.roll(ice, -1, axis=1)
         
-    if ds_name == 'DMI' :
+        
+    if ds_name == 'DMI_SST' :
         sst = np.roll(sst, 18, axis=0)
         ice = np.roll(ice, 18, axis=0)
         
-    if ds_name == 'NAVO':
+    if ds_name == 'NAVO_K10_SST_GDS2':
         sst = np.flip(sst, axis=0)
         ice = np.flip(ice, axis=0)
         
@@ -75,30 +75,31 @@ def preprocessing_dataset(ds_name, data_dic) :
     sst = sst - 273.15
     
     # ice
-    if ds_name == 'AVHRR' :
+    if ds_name == 'AVHRR_OI_SST' :
         ice = data_dic['ice'].copy()
         np.place(ice, ice[:,:] != -128, True)
         np.place(ice, ice[:,:] == -128, False)
 
-    elif ds_name == 'CMC' or ds_name == 'GAMSSA':
+    elif ds_name == 'CMC' or ds_name == 'GAMSSA_GDS2':
         np.place(ice, ice[:,:] != 8, False)
         np.place(ice, ice[:,:] == 8, True)
         
-    elif ds_name == 'DMI' or ds_name == 'MUR25' or ds_name == 'MUR' or ds_name == 'MW' or ds_name == 'OSTIA' or ds_name == 'MWIR':
+    elif ds_name == 'DMI_SST' or ds_name == 'MUR_SST' or ds_name == 'MUR' or ds_name == 'MW_IR_SST' or ds_name == 'OSTIA_SST' or ds_name == 'MW_OI_SST':
         np.place(ice, ice[:,:] != 9, False)
         np.place(ice, ice[:,:] == 9, True)
         
-    elif ds_name == 'OSPO' or ds_name == 'OSPON':
+    elif ds_name == 'OSPO_SST' or ds_name == 'OSPO_SST_Night':
         np.place(ice, ice[:,:] != 4, False)
         np.place(ice, ice[:,:] == 4, True)
         
-    elif ds_name == 'NAVO' :
+    elif ds_name == 'NAVO_K10_SST_GDS2' :
         np.place(ice, ice[:,:], False)
         
     return sst, ice
 
 
 def get_path(base_path, date):
+    
     anomaly_path = os.path.join(base_path, 'anomaly')
     if not os.path.exists(anomaly_path) : os.mkdir(anomaly_path)
         
@@ -161,15 +162,21 @@ def to_csv(nc_file_path, csv_file_path, include_null=False) :
     d_stack = []
     ds = Dataset(nc_file_path, 'r', format='NETCDF4')
     
-    data = ds['avgsst'][:].data
+    if 'anomaly' in nc_file_path :
+        data = ds['anomalysst'][:].data
+    elif 'grade' in nc_file_path :
+        data = ds['grade'][:].data
     lat_range = ds['lat'][:]
     lon_range = ds['lon'][:]
     
     for i in range(len(lat_range)) :
         for j in range(len(lat_range)):
-            if include_null == False and data[0][i][j] == -999:
+            if 'anomaly' in nc_file_path and include_null == False and (data[0][i][j] == -999 or data[0][i][j] == 32767):
                 continue
-            d_stack.append((lat_range[i], lon_range[j], data[0][i][j]))
+            if 'grade' in nc_file_path and data[0][i][j] == 10 :
+                continue
+            
+            d_stack.append((round(lat_range[i],4), round(lon_range[j],4), data[0][i][j]))
             
     df = pd.DataFrame(d_stack, columns=['lat', 'lon', 'sst'])
     df.to_csv(csv_file_path, index=False)

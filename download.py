@@ -19,7 +19,6 @@ def download_data(args):
      2) start_date != None and end_date == None : start_date ~ most_recent
      3) start_date != None and end_date != None : start_date ~ end_date
 
-    dataset_names = list of (AVHRR, CMC, DMI, GAMSSA, MUR25, MUR0.01, MWIR, MW, NAVO, OSPON, OSPO, OSTIA)
     '''
     
     common_url = 'https://podaac-opendap.jpl.nasa.gov/opendap/hyrax/allData/ghrsst/data'
@@ -117,7 +116,11 @@ def download_data(args):
 
             if file_name.endswith('.bz2') : file_name = file_name.replace('.bz2', '')
 
-            target_path = os.path.join(download_path, dataset_name, year)
+
+            d_path = os.path.join(download_path, dataset_name)
+            if not os.path.exists(d_path) : os.mkdir(d_path)
+            
+            target_path = os.path.join(d_path, year)
 
             if not os.path.exists(target_path):
                 os.mkdir(target_path)
@@ -133,12 +136,8 @@ def download_data(args):
             if response.status_code == 404:
                 print(f'[{date}|{dataset_name}] doesn\'t exist!')
                 continue
-            
-            d_path = os.path.join(download_path, dataset_name)
-            if not os.path.exists(d_path) : os.mkdir(d_path)
-            
-            
-            
+        
+        
             with open(target_file, 'wb') as out_file:
                 print(f'[{date}|{dataset_name}] downloading...')
                 shutil.copyfileobj(response.raw, out_file)
@@ -154,7 +153,10 @@ class TimeOutException(Exception) :
             
 if __name__ == '__main__' :
     
-    download_path = os.path.join('D:', 'raw_data')
+    volume_name = os.path.join('/Volumes', 'T7')
+    #volume_name = 'D:'
+    
+    download_path = os.path.join(volume_name ,'raw_data')
     
     parser = argparse.ArgumentParser()
     
