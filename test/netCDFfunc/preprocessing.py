@@ -19,12 +19,12 @@ def get_data_A(base_dir, year, month, day, variable_name, is_mask=False) -> np.n
     
     
     if year < 2016 :
-        directory = os.path.join(base_dir, f'{year}/oisst-avhrr-v02r01.{date}.nc') 
+        directory = os.path.join(base_dir, year, f'oisst-avhrr-v02r01.{date}.nc') 
 
     else :
-        directory = os.path.join(base_dir, f'{year}/{date}120000-NCEI-L4_GHRSST-SSTblend-AVHRR_OI-GLOB-v02.0-fv02.1.nc')
+        directory = os.path.join(base_dir, year, f'{date}120000-NCEI-L4_GHRSST-SSTblend-AVHRR_OI-GLOB-v02.0-fv02.1.nc')
         if not os.path.exists(directory):
-            directory = os.path.join(base_dir, f'{year}/{date}120000-NCEI-L4_GHRSST-SSTblend-AVHRR_OI-GLOB-v02.1-fv02.1.nc')
+            directory = os.path.join(base_dir, year, f'{date}120000-NCEI-L4_GHRSST-SSTblend-AVHRR_OI-GLOB-v02.1-fv02.1.nc')
 
         if variable_name == 'err' : variable_name = 'analysis_error'
         elif variable_name == 'sst' : variable_name = 'analysed_sst'

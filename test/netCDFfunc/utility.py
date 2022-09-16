@@ -11,7 +11,7 @@ import shutil
 import requests
 import datetime
 
-import cv2
+#import cv2
 import scipy.ndimage as ndimage
 import numpy as np
 from netCDF4 import Dataset
@@ -485,7 +485,7 @@ def _grid_resize(region, variable, period):
     
     grid_size = [0.01, 0.05, 0.10, 0.081, 0.08789, 0.054, 0.25]
     
-    base_dir = f'/Volumes/T7/new_data/processed_data/processed_data_{period}_{region}_{variable}' 
+    base_dir = os.path.join('D:', 'other_data', 'processed_data', f'processed_data_{period}_{region}_{variable}') 
 
     if variable == 'avg' : 
         variable_name = 'avgsst'
@@ -512,7 +512,7 @@ def _grid_resize(region, variable, period):
         value_1 = ds[variable_name][:].data[0] 
         f_date = file[-7:-3]
 
-        output_dir = f'/Volumes/T7/base_data/{period}/{variable}'
+        output_dir = os.path.join('D:', 'base_data', str(period), variable)
 
         for grid in grid_size :
             file_name = f'{variable}_{period}_{region}_{f_date}_{grid}' 

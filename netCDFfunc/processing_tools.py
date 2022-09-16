@@ -10,10 +10,6 @@ import shutil
 import requests
 import datetime
 
-
-            
-            
-
 def get_date(file_name):
     return file_name[:8]
 
