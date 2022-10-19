@@ -252,7 +252,6 @@ def get_stat(input, type) -> dict:
                 
     
     if type == 'v' :
-        
         for month, day_len in tqdm(zip(range(1,13), days)):
             for day in range(1,day_len+1):
                 arr = np.array(input[(month, day)])
@@ -317,18 +316,40 @@ def create_new_variable(ds_out, new_variable_name, dtype, dimension, fill_value,
 
 
 
-def nc_write(ds_new, title, comment, grid_size, 
-                    core_variable_name, core_variable_standard_name, core_variable_unit, core_variable_dtype, core_variable_values,
-                    lat_range=(0,None), lon_range=(0,None)):
+# overloading
+def nc_write(ds_new, grid_size, ds_name, yy_start_date, yy_end_date, region, date,
+             core_variable_name, core_variable_standard_name, core_variable_values,
+             avg_variable_name, avg_variable_standard_name, avg_variable_values,
+             variable_unit, variable_dtype, 
+             lat_range=(0,None), lon_range=(0,None), 
+             not_use_avg=False):
     
     # set attribute
-    now = dt.datetime.now()
-    attr_dict = {'title' : title,
-                 'grid' : f'{grid_size}',
-                 'institution' : 'NIA',
-                 'name_creator' : 'BNT',
-                 'date_creation' : now.strftime('%Y-%m-%d %H:%M:%S'),
-                 'comment' : comment}
+    date = datetime.datetime.strptime(date, '%Y%m%d').strftime('%Y.%m.%d')
+    
+    if ds_name == 'AVHRR_OI_SST' : source_data_org = 'National Centers for Environmental Information'
+    elif ds_name == 'CMC_SST' : source_data_org = 'Canadian Meteorological Center'
+    elif ds_name == 'DMI_SST' : source_data_org = 'Danish Meteorological Institute'
+    elif ds_name == 'GAMSSA_SST' : source_data_org = 'Australian Bureau of Meteorology'
+    elif ds_name == 'MUR_SST' : source_data_org = 'Jet Propulsion Laboratory'
+    elif ds_name == 'MW_IR_OI_SST' : source_data_org = 'Remote Sensing Systems'
+    elif ds_name == 'MW_OI_SST' : source_data_org = 'Remote Sensing Systems'
+    elif ds_name == 'NAVO_SST' : source_data_org = 'Naval Oceanographic Office'
+    elif ds_name == 'OSPO_SST' : source_data_org = 'Office of Satellite and Product Operations'
+    elif ds_name == 'OSTIA_SST' : source_data_org = 'UK Met Office'
+    
+    
+    attr_dict = {
+        'Observation Date' : f"{date}",
+        'Source Data Organization' : f'{source_data_org}',
+        'Source Data Name' : f'{ds_name}',
+        'Data Interval(deg)' : f'{grid_size:.3f}',
+        '30years SST Average Data Organization' : 'National Centers for Environmental Information',
+        '30years SST Average Data Name' : 'AVHRR_OI_SST',
+        '30years SST Average Start Date' : f'{yy_start_date}',
+        '30years SST Average End date' : f'{yy_end_date}',
+        'Observation Area' : f'{region.upper()}'
+        }
 
     for k, v in attr_dict.items():
         ds_new.setncattr(k,v)
@@ -352,8 +373,12 @@ def nc_write(ds_new, title, comment, grid_size,
     lat_grid = np.arange(-90 + (grid_size/2), 90 + (grid_size/2), grid_size)[:lat_force_cut][lat_s:lat_e]
     lon_grid = np.arange(0 + (grid_size/2), 360 + (grid_size/2), grid_size)[:lon_force_cut][lon_s:lon_e]
     
+    lat_grid = lat_grid.round(3)
+    lon_grid = lon_grid.round(3)
+    
+    
     # set dimension
-    dim_dict = {'ntime' : 1,
+    dim_dict = {#'ntime' : 1,
                 'nlat' : len(lat_grid),
                 'nlon' : len(lon_grid)}
 
@@ -361,26 +386,26 @@ def nc_write(ds_new, title, comment, grid_size,
         ds_new.createDimension(k,v)
 
     # set variables
-    for variable_name in ['time', 'lat', 'lon', core_variable_name]:
+    for variable_name in ['LA', 'LO', core_variable_name]: #'time', 
 
-        if variable_name == 'time' :
-            variable_attribute = {'standard_name' : 'time',
-                                  'format' : 'Mdd',
-                                  'axis' : 'T'}
-            dtype = np.int16
-            dimensions = ('ntime',)
-            variable_values = 101
+        # if variable_name == 'time' :
+        #     variable_attribute = {'standard_name' : 'time',
+        #                           'format' : 'Mdd',
+        #                           'axis' : 'T'}
+        #     dtype = np.int16
+        #     dimensions = ('ntime',)
+        #     variable_values = 101
 
-        if variable_name == 'lat' :
-            variable_attribute = {'standard_name' : 'latitude',
+        if variable_name == 'LA' :
+            variable_attribute = {'standard_name' : 'Latitude',
                                   'units' : 'degrees',
                                   'axis' : 'Y'}
             dtype = np.float32
             dimensions = ('nlat',)
             variable_values = lat_grid
 
-        if variable_name == 'lon' :
-            variable_attribute = {'standard_name' : 'longitude',
+        if variable_name == 'LO' :
+            variable_attribute = {'standard_name' : 'Longitude',
                                   'units' : 'degrees',
                                   'axis' : 'X'}
             dtype = np.float32
@@ -389,13 +414,12 @@ def nc_write(ds_new, title, comment, grid_size,
             
         if variable_name == core_variable_name :
             variable_attribute  = {'standard_name' : core_variable_standard_name,
-                                   'units' : core_variable_unit}
-            dtype = core_variable_dtype
-            dimensions = ('ntime', 'nlat', 'nlon',)
-            variable_values = core_variable_values#[lat_s:lat_e, lon_s:lon_e]
-
-
-        fill_value = -999
+                                   'units' : variable_unit}
+            dtype = variable_dtype
+            dimensions = ('nlat', 'nlon',)#('ntime', 'nlat', 'nlon',)
+            variable_values = core_variable_values #[lat_s:lat_e, lon_s:lon_e]    
+        
+        fill_value = np.nan
 
         ds_new = create_new_variable(ds_new,
                                      new_variable_name=variable_name,  
@@ -405,6 +429,23 @@ def nc_write(ds_new, title, comment, grid_size,
                                      values=variable_values,
                                      attributes=variable_attribute)
 
+            
+    if not_use_avg == False :
+        variable_name = avg_variable_name
+        variable_attribute  = {'standard_name' : avg_variable_standard_name,
+                                'units' : variable_unit}
+        dtype = variable_dtype
+        dimensions = ('nlat', 'nlon',)#('ntime', 'nlat', 'nlon',)
+        variable_values = avg_variable_values #[lat_s:lat_e, lon_s:lon_e]
+        
+        ds_new = create_new_variable(ds_new,
+                                     new_variable_name=variable_name,  
+                                     dtype=dtype,
+                                     dimension=dimensions,
+                                     fill_value=fill_value,
+                                     values=variable_values,
+                                     attributes=variable_attribute)
+        
     return ds_new
 
 def masking(input, mask, fill_value):
@@ -451,11 +492,15 @@ def get_anomaly_grade(sst, ice, mean, pctl, is_grade=False) :
     np.place(mean, mean[:,:]==-999, np.nan)
 
     anomaly = sst - mean
-    anomaly = masking(anomaly, ice, fill_value=-50)
+    
+    anomaly = masking(anomaly, ice, fill_value=-32768)
+    mean = masking(mean, ice, fill_value=-32768)
+    
     np.place(anomaly, anomaly[:,:] > 10000, 32767)
     
     if is_grade == False:
-        return anomaly
+        
+        return anomaly, mean
     
     elif is_grade == True :
         diff = pctl - mean
@@ -464,9 +509,9 @@ def get_anomaly_grade(sst, ice, mean, pctl, is_grade=False) :
         
         np.place(grade, grade[:,:] <= 0, 0)
         np.place(grade, (1000>grade[:,:]) & (grade[:,:] >5), 5)
-        np.place(grade,grade[:,:]>=1000, 10)
+        np.place(grade,grade[:,:]>=1000, 32767)
     
-        grade = masking(grade, ice, fill_value=-1)
+        grade = masking(grade, ice, fill_value=-32768)
         
         return grade
 

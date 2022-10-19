@@ -18,19 +18,20 @@ def process_data(args):
     grid_set = args.grid_set
     
     if dataset_names == [] :
-        dataset_names = ['AVHRR_OI_SST', 'CMC', 'DMI_SST', 'GAMSSA_GDS2', 'MUR_SST', 'MW_IR_SST', 'MW_OI_SST', 'NAVO_K10_SST_GDS2', 'OSPO_SST_Night', 'OSPO_SST', 'OSTIA_SST']
+        dataset_names = ['AVHRR_OI_SST', 'CMC_SST', 'DMI_SST', 'GAMSSA_SST', 'MUR_SST', 'MW_IR_OI_SST', 'MW_OI_SST', 'NAVO_SST', 'OSPO_SST', 'OSTIA_SST']
     if grid_set == []:
         grid_set = ['0.05', '0.054', '0.081', '0.08789', '0.1', '0.25'] #'0.01', 
 
     for ds_name in dataset_names :
         
         print(f'{ds_name} processing...')
-        if ds_name == 'AVHRR_OI_SST':
-            raw_ds_name = os.path.join(ds_name, 'v2.1')
-        elif ds_name == 'CMC' :
-            raw_ds_name = os.path.join(ds_name, 'deg0.1')
-        else :
-            raw_ds_name = ds_name
+        # if ds_name == 'AVHRR_OI_SST':
+        #     raw_ds_name = os.path.join(ds_name, 'v2.1')
+        # elif ds_name == 'CMC_SST' :
+        #     raw_ds_name = os.path.join(ds_name, 'deg0.1')
+        # else :
+        
+        raw_ds_name = ds_name
 
         # anomally and grade save location
         target_path_base = os.path.join(output_path, ds_name)
@@ -66,14 +67,19 @@ def process_data(args):
             anomaly_csv_path, grade_csv_path = get_path(csv_path, date)
             
             raw_data_file_name_new = raw_data_file_name.replace('nc','')
-            anomaly_img_file_path = os.path.join(anomaly_img_path, f'{raw_data_file_name_new}_{region}_anomaly.png')
-            grade_img_file_path = os.path.join(grade_img_path, f'{raw_data_file_name_new}_{region}_grade.png')
             
-            anomaly_nc_file_path = os.path.join(anomaly_nc_path, f'{raw_data_file_name_new}_{region}_anomaly.nc')
-            grade_nc_file_path = os.path.join(grade_nc_path, f'{raw_data_file_name_new}_{region}_grade.nc')
+            str_date = datetime.datetime.strptime(date, '%Y%m%d').strftime('%Y_%m_%d')
+            str_region = region.upper()
+            file_name_base = f'{ds_name}_{str_date}_{str_region}'
             
-            anomaly_csv_file_path = os.path.join(anomaly_csv_path, f'{raw_data_file_name_new}_{region}_anomaly.csv')
-            grade_csv_file_path = os.path.join(grade_csv_path, f'{raw_data_file_name_new}_{region}_grade.csv')
+            anomaly_img_file_path = os.path.join(anomaly_img_path, f'{file_name_base}_Anomaly.png')
+            grade_img_file_path = os.path.join(grade_img_path, f'{file_name_base}_Grade.png')
+            
+            anomaly_nc_file_path = os.path.join(anomaly_nc_path, f'{file_name_base}_Anomaly.nc')
+            grade_nc_file_path = os.path.join(grade_nc_path, f'{file_name_base}_Grade.nc')
+            
+            anomaly_csv_file_path = os.path.join(anomaly_csv_path, f'{file_name_base}_Anomaly.csv')
+            grade_csv_file_path = os.path.join(grade_csv_path, f'{file_name_base}_Grade.csv')
             
             if os.path.exists(anomaly_img_file_path) and os.path.exists(grade_img_file_path) and os.path.exists(anomaly_nc_file_path) and os.path.exists(grade_nc_file_path):
                 continue
@@ -103,7 +109,7 @@ def process_data(args):
             sst = cropping(sst, region, grid)
             ice = cropping(ice, region, grid).astype(bool)
             
-            if region == 'rok' and ds_name == 'MW_IR_SST':
+            if region == 'rok' and ds_name == 'MW_IR_OI_SST':
                 ice = ice[:-1,:]
                 sst = sst[:-1,:]
             
@@ -113,7 +119,7 @@ def process_data(args):
             
             ice = base_ice + ice
 
-            anomaly = get_anomaly_grade(sst, ice, mean, pctl)
+            anomaly, yy_mean = get_anomaly_grade(sst, ice, mean, pctl)
             grade = get_anomaly_grade(sst, ice, mean, pctl, is_grade=True)
             
             # img save
@@ -121,8 +127,8 @@ def process_data(args):
             to_img(grade, output_path=grade_img_file_path, is_grade=True, save_img=True)
             
             # nc write
-            to_nc(anomaly_nc_file_path, anomaly, period, region, grid, date)
-            to_nc(grade_nc_file_path, grade, period, region, grid, date, is_grade=True)
+            to_nc(anomaly_nc_file_path, ds_name, anomaly, yy_mean, period, region, grid, date)
+            to_nc(grade_nc_file_path, ds_name, grade, yy_mean, period, region, grid, date, is_grade=True)
             
             # nc to csv
             to_csv(anomaly_nc_file_path, anomaly_csv_file_path, include_null=False)
@@ -143,7 +149,7 @@ if __name__ == '__main__' :
     parser.add_argument('--raw_path', type=str, default=raw_path, help='path of raw files')
     
     parser.add_argument('--k_day', type=int, default=0, help='check data from k day ago')
-    parser.add_argument('--region', type=str, default='', help='one of [rok, nw, global]')
+    parser.add_argument('--region', type=str, default='', help='one of [rok, nwp, global]')
     parser.add_argument('--dataset_names', type=list, default=[], help='specify dataset by list')
     parser.add_argument('--grid_set', type=list, default=[], help='specify grid size by list')
     
